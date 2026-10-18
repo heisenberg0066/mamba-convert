@@ -31,6 +31,17 @@ public static class W {
   [DllImport("gdi32.dll")] public static extern uint GetPixel(IntPtr dc, int x, int y);
   [DllImport("gdi32.dll")] public static extern bool DeleteObject(IntPtr o);
   [DllImport("gdi32.dll")] public static extern bool DeleteDC(IntPtr dc);
+  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
+  // pixel of the window's own rendered content (PrintWindow + PW_RENDERFULLCONTENT also captures GPU/DirectComposition
+  // output, which plain screen BitBlt misses for transparent Chromium windows); x,y relative to the window; 0xRRGGBB
+  public static int WindowPixel(IntPtr h, int x, int y) {
+    RECT r; GetWindowRect(h, out r); int w = r.R - r.L, ht = r.B - r.T; if (w <= 0 || ht <= 0) return -1;
+    IntPtr sdc = GetDC(IntPtr.Zero), mdc = CreateCompatibleDC(sdc), bmp = CreateCompatibleBitmap(sdc, w, ht), old = SelectObject(mdc, bmp);
+    bool ok = PrintWindow(h, mdc, 2); uint c = GetPixel(mdc, x, y);
+    SelectObject(mdc, old); DeleteObject(bmp); DeleteDC(mdc); ReleaseDC(IntPtr.Zero, sdc);
+    if (!ok) return -1; return (int)(((c & 0xFF) << 16) | (c & 0xFF00) | ((c >> 16) & 0xFF));
+  }
+  [DllImport("user32.dll")] public static extern int GetSystemMetrics(int i);
   // screen pixel including layered/transparent windows (BitBlt with CAPTUREBLT); returns 0xRRGGBB
   public static int Pixel(int x, int y) {
     IntPtr sdc = GetDC(IntPtr.Zero), mdc = CreateCompatibleDC(sdc), bmp = CreateCompatibleBitmap(sdc, 1, 1), old = SelectObject(mdc, bmp);
@@ -52,6 +63,7 @@ $cmd = (Get-ItemProperty 'HKCU:\Software\Classes\SystemFileAssociations\.jpg\she
 if ($cmd -notmatch '^"([^"]+)"\s+(.*)$') { throw "bad verb command: $cmd" }
 $exe = $Matches[1]; $tmpl = $Matches[2]
 Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 1
+[void][W]::SetCursorPos([int]([W]::GetSystemMetrics(0) / 2), [int]([W]::GetSystemMetrics(1) / 2))
 if ($WithHelper) { Start-Process -FilePath $exe -ArgumentList '--background' | Out-Null; Start-Sleep 6 }
 # Explorer in the foreground, like a real right-click
 $dir = Split-Path $Files[0]
@@ -75,12 +87,12 @@ $px = $cx; $py = [int]($cy - 118 * $scale)
 Start-Sleep -Milliseconds 600
 # the hovered slice is orange (#ff7a00); sample its on-screen colour too, which catches fade/redraw flicker
 function IsOrange($c) { $rr = ($c -shr 16) -band 255; $gg = ($c -shr 8) -band 255; $bb = $c -band 255; return ($rr -gt 200 -and $gg -gt 80 -and $gg -lt 160 -and $bb -lt 80) }
-$c0 = [W]::Pixel($px, $py); Write-Host ("[$Label] slice pixel at ($px,$py) = #{0:x6}" -f $c0)
+$c0 = [W]::WindowPixel($h, $px - $r.L, $py - $r.T); Write-Host ("[$Label] slice pixel at ($px,$py) = #{0:x6}" -f $c0)
 $samples = 0; $hidden = 0; $transitions = 0; $prev = $true; $trace = New-Object System.Text.StringBuilder; $notOrange = 0; $colours = @{}
 $sw.Restart()
 while ($sw.ElapsedMilliseconds -lt ($Seconds * 1000)) {
   $v = [W]::AnyVisible($title); $samples++
-  $c = [W]::Pixel($px, $py); if (!(IsOrange $c)) { $notOrange++ }; $colours[('{0:x6}' -f $c)] = 1 + [int]$colours[('{0:x6}' -f $c)]
+  $c = [W]::WindowPixel($h, $px - $r.L, $py - $r.T); if (!(IsOrange $c)) { $notOrange++ }; $colours[('{0:x6}' -f $c)] = 1 + [int]$colours[('{0:x6}' -f $c)]
   if (!$v) { $hidden++ }
   if ($v -ne $prev) { $transitions++; [void]$trace.Append("$($sw.ElapsedMilliseconds)ms:$(if ($v) {'show'} else {'hide'}) ") }
   $prev = $v; Start-Sleep -Milliseconds 50
