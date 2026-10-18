@@ -2,6 +2,7 @@ html,body{margin:0;background:transparent;overflow:hidden;font-family:"Segoe UI 
 .radial-body{width:720px;height:720px}
 #wheel{position:absolute;left:0;top:0;overflow:visible}
 .ring{transform-origin:360px 360px;animation:pop .22s cubic-bezier(.2,.9,.3,1.25) both}
+.ring.still{animation:none}
 @keyframes pop{from{transform:scale(.55) rotate(-12deg);opacity:0}to{transform:none;opacity:1}}
 .sl path{fill:rgba(255,255,255,.96);stroke:rgba(0,0,0,.08);stroke-width:1;transition:fill .12s,transform .12s;filter:drop-shadow(0 4px 10px rgba(0,0,0,.22))}
 .r2 .sl path{fill:rgba(255,248,240,.97)}.r3 .sl path{fill:rgba(255,242,228,.97)}

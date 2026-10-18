@@ -100,6 +100,8 @@ The installer registers everything per user. It writes `HKCU\Software\Classes\Sy
 
 On Windows 11 the entry appears under **Show more options** (Shift+F10). A top-level Windows 11 menu entry would need a signed MSIX sparse package, so it is not included.
 
+Diagnostics: every wheel launch, show, focus, blur and hide is logged to `%APPDATA%\Mamba Convert\logs\wheel.log`.
+
 CLI: `"Mamba Convert.exe" --radial <files…>`, `--bubble`, `--background`, `--open-in-reader <file>`.
 
 ## Install (Windows 10/11 x64)

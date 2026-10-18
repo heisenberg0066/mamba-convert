@@ -15,6 +15,15 @@ module.exports = function createController(ctx) {
   const tracked = new Map(); // job id -> {id,label,status,progress,outputs,error}
   let toastHideT = null, collectT = null, collectBuf = [], collectAt = null;
   const iconPath = path.join(__dirname, '..', '..', 'build', 'icon.png');
+  const wlog = ctx.log || require('./wheellog')(app);
+  // Wheel window state machine (see showRadial/hideRadial): one session per right-click.
+  //  - showing is idempotent: a visible wheel is never hidden and re-shown, it is only updated in place;
+  //  - files from late Explorer launches (one process per selected file) are merged into the open wheel;
+  //  - blur closes the wheel only after it really gained focus and a grace period has passed.
+  const GRACE_MS = Number(process.env.MAMBA_WHEEL_GRACE_MS || 300);
+  const MERGE_MS = Number(process.env.MAMBA_WHEEL_MERGE_MS || 2500);
+  let session = 0, shownAt = 0, focusedAt = 0, armed = false, armT = null, unfocusedT = null, lastHide = { at: 0, key: '' };
+  const keyOf = (files) => files.slice().sort().join('|');
 
   // ---------- helpers ----------
   const webPrefs = { preload: path.join(__dirname, 'preload-radial.js'), contextIsolation: true, nodeIntegration: false, sandbox: false, spellcheck: false, backgroundThrottling: false };
@@ -35,33 +44,91 @@ module.exports = function createController(ctx) {
   function ensureRadial() {
     if (radial && !radial.isDestroyed()) return radialReady;
     radial = new BrowserWindow({ width: 720, height: 720, frame: false, transparent: true, resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false, alwaysOnTop: true, skipTaskbar: true, show: false, hasShadow: false, backgroundColor: '#00000000', title: 'Mamba Convert wheel', webPreferences: webPrefs });
-    radial.setAlwaysOnTop(true, 'pop-up-menu'); radial.setMenu(null);
-    radial.on('blur', () => { if (!TEST && radial.isVisible()) hideRadial(); });
+    radial.setAlwaysOnTop(true, 'screen-saver'); radial.setMenu(null);
+    radial.on('focus', () => {
+      focusedAt = Date.now(); wlog('focus', { session, sinceShow: focusedAt - shownAt });
+      clearTimeout(armT); armT = setTimeout(() => { if (radial && !radial.isDestroyed() && radial.isFocused()) { armed = true; wlog('blur-armed', { session }); } }, GRACE_MS);
+    });
+    radial.on('blur', () => {
+      const vis = radial.isVisible();
+      if (!vis) return;
+      if (TEST) { wlog('blur-ignored', { session, reason: 'test' }); return; }
+      if (!armed) {
+        // Focus moved away before the grace period ended (typically Explorer re-activating itself right after the
+        // shell launch). Do NOT hide: that is what produced the show/hide flicker. Take focus back once instead.
+        wlog('blur-ignored', { session, reason: focusedAt ? 'grace' : 'never-focused', sinceShow: Date.now() - shownAt });
+        if (Date.now() - shownAt < 1500) setTimeout(() => takeFocus('refocus'), 30);
+        return;
+      }
+      hideRadial('blur');
+    });
+    radial.on('show', () => wlog('window-show', { session }));
+    radial.on('hide', () => wlog('window-hide', { session }));
+    radial.webContents.on('render-process-gone', (_e, d) => wlog('renderer-gone', { reason: d && d.reason }));
     radial.on('closed', () => { radial = null; });
     radialReady = radial.loadFile(path.join(__dirname, 'radial.html'));
     return radialReady;
   }
   /** Explorer launches one process per selected file; collect them for a moment, then show one wheel. */
   function collect(paths, at) {
+    wlog('launch', { files: paths.length, visible: !!(radial && !radial.isDestroyed() && radial.isVisible()) });
+    // A wheel that just opened for this selection: merge late arrivals straight in (no new session, no re-show).
+    if (radial && !radial.isDestroyed() && radial.isVisible() && Date.now() - shownAt < MERGE_MS && !collectBuf.length) { api.showRadial(paths, null, null, { merge: true }); return; }
     collectBuf.push(...paths); collectAt = at || collectAt; clearTimeout(collectT);
     collectT = setTimeout(() => { const p = collectBuf; collectBuf = []; const a = collectAt; collectAt = null; api.showRadial(p, a); }, Number(process.env.MAMBA_RADIAL_COLLECT_MS || 450));
   }
-  async function showRadial(paths, at, preselect) {
-    const files = expand(paths);
-    if (!files.length) { notify(paths.length ? 'unsupported' : 'noSelection'); return false; }
-    radialFiles = files;
+  function takeFocus(why) {
+    if (!radial || radial.isDestroyed() || !radial.isVisible()) return;
+    try { if (process.platform === 'win32' || process.platform === 'darwin') app.focus({ steal: true }); } catch (_) {}
+    radial.focus(); radial.moveTop(); radial.webContents.focus();
+    wlog('take-focus', { session, why, focused: radial.isFocused() });
+  }
+  async function showRadial(paths, at, preselect, opts = {}) {
+    let files = expand(paths);
+    if (!files.length && !opts.merge) { wlog('show-skipped', { reason: paths.length ? 'unsupported' : 'no-selection' }); notify(paths.length ? 'unsupported' : 'noSelection'); return false; }
+    const visible = radial && !radial.isDestroyed() && radial.isVisible();
+    if (visible && (opts.merge || keyOf(files) === keyOf(radialFiles))) {
+      // Idempotent: already showing → update in place, never hide/show.
+      const merged = [...new Set([...radialFiles, ...files])]; const added = merged.length - radialFiles.length;
+      wlog('show-update', { session, added, files: merged.length });
+      if (added) { radialFiles = merged; const menu = M.menuFor(merged, { readerAvailable: !!reader.findReader() }); radial.webContents.send('radial:show', { items: menu.items, kinds: menu.kinds, count: merged.length, lang: lang(), preselect, update: true }); }
+      return true;
+    }
+    if (!files.length) return false;
+    const key = keyOf(files);
+    if (!visible && lastHide.reason === 'blur' && lastHide.key === key && Date.now() - lastHide.at < 700) { wlog('show-suppressed', { reason: 'same selection right after a blur-close' }); return false; }
+    session++; radialFiles = files; armed = false; focusedAt = 0; clearTimeout(armT); clearTimeout(unfocusedT);
     const menu = M.menuFor(files, { readerAvailable: !!reader.findReader() });
     await ensureRadial();
     const pt = at || screen.getCursorScreenPoint(); const wa = displayAt(pt);
     const x = Math.round(Math.min(Math.max(pt.x - 360, wa.x - 200), wa.x + wa.width - 520)), y = Math.round(Math.min(Math.max(pt.y - 360, wa.y - 200), wa.y + wa.height - 520));
     radial.setBounds({ x, y, width: 720, height: 720 });
     radial.webContents.send('radial:show', { items: menu.items, kinds: menu.kinds, count: files.length, lang: lang(), preselect });
-    radial.showInactive(); radial.show(); radial.focus(); radial.moveTop();
-    if (process.platform === 'win32') { radial.setAlwaysOnTop(false); radial.setAlwaysOnTop(true, 'pop-up-menu'); }
+    shownAt = Date.now();
+    wlog('show', { session, files: files.length, wasVisible: !!visible, x, y, cursor: pt });
+    if (!radial.isVisible()) radial.show();
+    radial.setAlwaysOnTop(true, 'screen-saver');
+    takeFocus('show');
+    // Focus-stealing prevention can refuse focus entirely; then a blur never comes. In that case close only when the
+    // cursor has stayed well away from the wheel for a while (Esc / clicks need focus, which a click on the wheel gives).
+    const watch = () => {
+      if (!radial || radial.isDestroyed() || !radial.isVisible()) return;
+      if (!radial.isFocused() && !TEST) {
+        const c = screen.getCursorScreenPoint(); const b = radial.getBounds(); const dx = c.x - (b.x + 360), dy = c.y - (b.y + 360);
+        if (Math.hypot(dx, dy) > 420) { watch.away = (watch.away || 0) + 250; if (watch.away >= 6000) { hideRadial('unfocused-cursor-away'); return; } } else watch.away = 0;
+      } else watch.away = 0;
+      unfocusedT = setTimeout(watch, 250);
+    };
+    unfocusedT = setTimeout(watch, 250);
     return true;
   }
-  function hideRadial() { if (radial && !radial.isDestroyed() && radial.isVisible()) radial.hide(); setTimeout(maybeQuit, 300); }
-  ipcMain.on('radial:close', () => hideRadial());
+  function hideRadial(reason = 'close') {
+    clearTimeout(armT); clearTimeout(unfocusedT); armed = false;
+    if (radial && !radial.isDestroyed() && radial.isVisible()) { lastHide = { at: Date.now(), key: keyOf(radialFiles), reason }; wlog('hide', { session, reason, shownFor: Date.now() - shownAt }); radial.hide(); }
+    setTimeout(maybeQuit, 300);
+  }
+  ipcMain.on('radial:close', (_e, d) => hideRadial(d && d.picked ? 'picked' : (d && d.reason) || 'renderer-close'));
+  ipcMain.on('radial:log', (_e, d) => wlog('renderer', d || {}));
   ipcMain.on('radial:pick', (_e, d) => runPick(d.action, radialFiles, d.label));
 
   function runPick(action, files, label) {
@@ -178,6 +245,6 @@ $out | ForEach-Object { [Console]::WriteLine($_) }`;
   function maybeQuit() { if (ctx.helperActive() || ctx.mainOpen() || anyVisible() || busy() || collectBuf.length) return; app.quit(); }
 
   const api = { collect, showRadial, hideRadial, runPick, onJobUpdate, showBubble, hideBubble, startHelper, applyHotkey, applyLogin, onHotkey, maybeQuit, explorerSelection, expand,
-    _windows: () => ({ radial, toast, bubble, tray }), _tracked: tracked, _files: () => radialFiles, _set: (x) => saveSettings(x) };
+    _windows: () => ({ radial, toast, bubble, tray }), _log: wlog, _tracked: tracked, _files: () => radialFiles, _set: (x) => saveSettings(x) };
   return api;
 };

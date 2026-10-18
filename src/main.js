@@ -167,6 +167,7 @@ app.whenReady().then(async () => {
   controller = require('./radial/controller')({ app, enqueue, cancel: cancelJob, openMain, reader: { findReader, openInReader }, settings: () => settings, saveSettings: (s) => { settings = { ...settings, ...s }; saveSettings(); }, kindOf: (f) => E.kind(f), helperActive: () => helperEnabled() && !!controller._windows().tray, mainOpen: () => !!(win && !win.isDestroyed()) });
   if (settings.startAtLogin === undefined && app.isPackaged && process.platform === 'win32' && !process.env.PORTABLE_EXECUTABLE_FILE) { settings.startAtLogin = true; saveSettings(); }
   if (helperEnabled()) { controller.startHelper(); controller.applyLogin(); }
+  controller._log('startup', { radial: !!args.radial, files: args.files.length, background: !!args.background, version: app.getVersion() });
   require('./radial/testhooks')({ app, controller, E, fs, path });
   if (args.radial) controller.collect(args.files);
   else if (args.bubble) controller.showBubble();

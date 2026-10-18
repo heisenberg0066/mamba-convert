@@ -35,6 +35,24 @@ module.exports = async ({ controller, app, E }) => {
     await key('Right'); const p1 = await js('__radial.path.join(",")'); await key('Return'); const p2 = await js('__radial.path.join(",")'); await key('Escape'); const p3 = await js('__radial.path.join(",")');
     if (!(p1 === '1' && p2 === '1,0' && p3 === '1')) throw new Error(`${p1} | ${p2} | ${p3}`); return `${p1} → ${p2} → ${p3}`;
   });
+  await step('resting cursor on a slice does not re-render or re-animate (v1.2.0 flicker regression)', async () => {
+    await controller.showRadial([jpg]); await sleep(400); const w = W().radial;
+    w.webContents.sendInputEvent({ type: 'mouseMove', x: 360, y: 250 }); await sleep(120); w.webContents.sendInputEvent({ type: 'mouseMove', x: 360, y: 253 }); await sleep(500);
+    const r0 = await js('__radial.renders'); await sleep(1500); const r1 = await js('__radial.renders');
+    const still = await js('document.querySelectorAll(".ring.still").length');
+    if (r1 - r0 > 1) return false; return `renders during 1.5 s of a resting cursor: ${r1 - r0}; rings not re-animated: ${still}`;
+  });
+  await step('showing again while visible is idempotent (no hide/show), late files merge in place', async () => {
+    controller.hideRadial(); await sleep(200); await controller.showRadial([jpg]); await sleep(250);
+    const w = W().radial; let hides = 0, shows = 0; const h = () => hides++, s = () => shows++; w.on('hide', h); w.on('show', s);
+    const before = await js('__radial.renders');
+    await controller.showRadial([jpg]); await sleep(150);
+    controller.collect([jpg2]); await sleep(300);
+    const count = await js('__radial.state.count'); w.removeListener('hide', h); w.removeListener('show', s);
+    if (hides || shows || !w.isVisible() || count !== 2) throw new Error(`hides=${hides} shows=${shows} visible=${w.isVisible()} count=${count}`);
+    return `hides=${hides} shows=${shows} count=${count} extra renders=${(await js('__radial.renders')) - before}`;
+  });
+  await step('wheel events are logged to the app-data log', async () => { const f = controller._log.path(); const t = fs.readFileSync(f, 'utf8'); const ok = /"event":"show"/.test(t) && /"event":"show-update"/.test(t); controller.hideRadial(); await sleep(200); await controller.showRadial([jpg]); await sleep(300); return ok ? f : false; });
   await step('Escape on the inner ring closes the wheel', async () => { const w = W().radial; w.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); return !!(await until(() => !W().radial.isVisible(), 3000)); });
   await step('Convert → PNG runs in the background with a toast', async () => {
     await controller.showRadial([jpg]); await sleep(300);
