@@ -58,6 +58,9 @@ function pump() {
 
 function outputDirFor() { return settings.outputMode === 'folder' && settings.outputDir ? settings.outputDir : undefined; }
 
+// ---------- Mamba Reader handoff ----------
+const { findReader, openInReader } = require('./reader')({ app, shell });
+
 // ---------- IPC ----------
 ipcMain.handle('get-settings', () => settings);
 ipcMain.handle('set-settings', (_e, s) => { settings = { ...settings, ...s }; saveSettings(); pump(); return settings; });
@@ -95,6 +98,8 @@ ipcMain.handle('enqueue', (_e, list) => {
 });
 ipcMain.handle('cancel', (_e, id) => { const r = jobs.get(id); if (r) { if (r.status === 'queued') { r.status = 'cancelled'; send('job-update', { id, status: 'cancelled' }); } r.ctrl.abort(); } });
 ipcMain.handle('retry', (_e, id) => { const r = jobs.get(id); if (r && ['error', 'cancelled'].includes(r.status)) { r.ctrl = new AbortController(); r.status = 'queued'; pending.push(id); send('job-update', { id, status: 'queued', progress: 0 }); pump(); } });
+ipcMain.handle('reader-status', () => !!findReader());
+ipcMain.handle('open-in-reader', (_e, p) => openInReader(p));
 ipcMain.handle('show-item', (_e, p) => shell.showItemInFolder(p));
 ipcMain.handle('open-path', (_e, p) => shell.openPath(p));
 ipcMain.handle('open-output-folder', (_e, p) => shell.openPath(p || settings.outputDir || app.getPath('downloads')));

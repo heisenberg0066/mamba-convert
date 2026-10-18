@@ -36,16 +36,17 @@ function targetsFor(e) {
   const k = kindOf(e);
   let t = [];
   switch (k) {
-    case 'image': t = [...IMAGE_OUT]; if (n === 'gif') t.push('mp4', 'webm'); break;
+    case 'image': t = [...IMAGE_OUT, 'flipbook']; if (n === 'gif') t.push('mp4', 'webm'); break;
     case 'video': t = [...VIDEO_OUT, ...AUDIO_OUT, ...SNAP_OUT]; break;
     case 'audio': t = [...AUDIO_OUT]; break;
-    case 'pdf': t = [...PDF_OUT]; break;
-    case 'ebook': t = [...EBOOK_OUT]; break;
+    case 'pdf': t = [...PDF_OUT, 'flipbook']; break;
+    case 'ebook': t = [...EBOOK_OUT, 'flipbook']; break;
     case 'doc':
       if (n === 'md') t = ['html', 'pdf', 'txt', 'docx'];
       else if (n === 'html') t = ['pdf', 'txt', 'md', 'docx'];
       else if (n === 'txt') t = ['pdf', 'html', 'md', 'docx'];
       else if (n === 'docx') t = ['pdf', 'html', 'txt', 'md'];
+      if (t.length) t.push('flipbook');
       break;
     case 'data': t = { csv: ['json', 'tsv', 'html'], tsv: ['json', 'csv', 'html'], json: ['csv', 'tsv'] }[n] || []; break;
     default: t = [];

@@ -12,6 +12,7 @@ const P = {
 const RES = ['', '2160', '1440', '1080', '720', '480', '360', '240'];
 
 const TOOLS = [
+  T('make-flipbook', '📖', ['pdf', 'image', 'doc', 'ebook'], [P.sel('mode', 'single', ['single', 'folder']), P.num('pageWidth', 1400, 400, 4000, 50), P.range('quality', 82, 30, 100), P.chk('rtl', false), P.text('title', '')], { multi: true, minFiles: 1 }),
   T('compress-image', '🗜️', ['image'], [P.range('quality', 70, 1, 100), P.num('targetKB', '', 1, 100000), P.sel('format', 'same', ['same', 'jpg', 'webp', 'avif', 'png']), P.num('maxWidth', '', 16, 20000)]),
   T('compress-video', '🎬', ['video'], [P.sel('mode', 'crf', ['crf', 'size']), P.range('crf', 28, 18, 40), P.num('targetMB', 10, 1, 100000, 0.5), P.sel('height', '', RES), P.sel('format', 'mp4', ['mp4', 'webm', 'mkv'])]),
   T('compress-audio', '🎧', ['audio'], [P.sel('audioBitrate', '96', ['32', '48', '64', '96', '128', '160', '192', '256', '320']), P.sel('format', 'mp3', ['mp3', 'm4a', 'opus', 'ogg'])]),

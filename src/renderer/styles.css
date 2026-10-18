@@ -95,3 +95,5 @@ label.chk{display:flex!important;align-items:center;gap:6px;margin-top:6px}label
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:100;box-shadow:var(--shadow)}
 [dir=rtl] .crop-box,[dir=rtl] .canvas,[dir=rtl] .track{direction:ltr}
 .stage-bar button,.stage-bar label{white-space:nowrap}.qlist{max-height:26vh}
+.fmt.flip{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);text-transform:none}.job .btns button.reader{border-color:var(--accent);color:var(--accent)}.job .btns button.reader.off{opacity:.45}
+.job{grid-template-columns:24px minmax(0,1.4fr) 1fr 110px auto}

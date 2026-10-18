@@ -62,6 +62,39 @@ const o = { outputDir: OUT };
   if (isElectron) {
     for (const [f, n] of [[md, 'md'], [docx, 'docx']]) await check(`${n} → pdf (Chromium)`, () => E.runJob({ type: 'convert', files: [f], target: 'pdf', outputDir: OUT }));
   }
+  // ---- flipbook ----
+  const flipPages = (html) => { const m = fs.readFileSync(html, 'utf8').match(/window\.MF_DATA=(\{.*?\});<\/script>/s); if (!m) throw new Error('no MF_DATA'); const d = JSON.parse(m[1]); if (!fs.readFileSync(html, 'utf8').includes('class MambaFlip')) throw new Error('engine not inlined'); return d; };
+  await check('pdf → flipbook (single html)', async () => { const r = await E.runJob({ type: 'convert', files: [pdfB], target: 'flipbook', outputDir: OUT }); const d = flipPages(r[0]); if (d.pages.length !== 3 || d.thumbs.length !== 3 || !d.pages[0].src.startsWith('data:image/jpeg')) throw new Error('pages ' + d.pages.length); return r; });
+  await check('pdf → flipbook (folder + index.html, RTL)', async () => { const r = await E.runJob({ type: 'tool', tool: 'make-flipbook', files: [pdfA], options: { mode: 'folder', rtl: true }, outputDir: OUT }); const d = flipPages(r[0]); if (!d.rtl || d.pages.length !== 2 || !fs.existsSync(path.join(path.dirname(r[0]), d.pages[1].src))) throw new Error('folder pages'); return r; });
+  await check('images + PDFs → one flipbook', async () => { const r = await E.runJob({ type: 'tool', tool: 'make-flipbook', files: [png, pdfA, pdfB], options: { title: 'Mixed' }, outputDir: OUT }); const d = flipPages(r[0]); if (d.pages.length !== 6 || d.title !== 'Mixed') throw new Error('n=' + d.pages.length); return r; });
+  if (isElectron) {
+    await check('md → flipbook (via Chromium PDF)', async () => { const r = await E.runJob({ type: 'convert', files: [md], target: 'flipbook', outputDir: OUT }); if (flipPages(r[0]).pages.length < 1) throw new Error('empty'); return r; });
+    await check('flipbook opens & flips in a browser', async () => {
+      const { BrowserWindow } = require('electron');
+      const html = (await E.runJob({ type: 'tool', tool: 'make-flipbook', files: [pdfA, pdfB], outputDir: OUT }))[0];
+      const w = new BrowserWindow({ show: true, width: 1200, height: 800, webPreferences: { backgroundThrottling: false } }); const errs = []; w.webContents.on('console-message', (_e, lvl, msg) => { if (lvl >= 3) errs.push(msg); });
+      try {
+        await w.loadFile(html); const js = (s) => w.webContents.executeJavaScript(s); const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        await wait(300); await js('window.__flip.forceSingle=false;window.__flip.layout();window.__flip.render()');
+        const s0 = await js('window.__flip.state()'); await js('window.__flip.next()'); await wait(1200); const s1 = await js('window.__flip.state()');
+        await js('window.__flip.go(4)'); await wait(1200); const s2 = await js('window.__flip.state()'); await js('window.__flip.prev()'); await wait(1200); const s3 = await js('window.__flip.state()');
+        await js('window.__flip.zoomBy(2)'); const z = await js('window.__flip.state().zoom'); const th = await js('document.querySelectorAll(".mf-thumb").length');
+        const ok = s0.pages === 5 && s0.visible.join() === '0' && s1.visible.join() === '1,2' && s2.visible.join() === '3,4' && s3.visible.join() === '1,2' && z === 2 && th === 5 && !errs.length;
+        if (!ok) throw new Error(JSON.stringify({ s0, s1, s2, s3, z, th, errs }));
+      } finally { w.destroy(); }
+      return html;
+    });
+    await check('Open in Mamba Reader handoff (exe)', async () => {
+      const fake = path.join(W, 'fake-reader.sh'); const log = path.join(W, 'reader-args.txt');
+      fs.writeFileSync(fake, `#!/bin/sh\necho "$@" > "${log}"\n`, { mode: 0o755 }); process.env.MAMBA_READER_PATH = fake;
+      const { app, shell } = require('electron'); const R = require('../src/reader')({ app, shell });
+      const target = path.join(OUT, 'b-flipbook.html'); const res = R.openInReader(target);
+      await new Promise((r) => setTimeout(r, 500)); delete process.env.MAMBA_READER_PATH;
+      if (!res.ok || fs.readFileSync(log, 'utf8').trim() !== target) throw new Error(JSON.stringify(res));
+      if (R.findReader() && !process.env.CI) {/* a real Reader may be installed */}
+      return log;
+    });
+  }
   // ---- image studio edits ----
   const studio = { crop: { x: 0.1, y: 0.1, w: 0.5, h: 0.5 }, rotate: 90, flipH: true, brightness: 10, contrast: 20, saturation: -30, hue: 45, dpi: 300, resize: { mode: 'percent', percent: 50 } };
   await check('studio: crop+rotate+flip+colour+DPI+resize → jpg', async () => { const r = await E.image.convert(png, 'jpg', { ...studio, outputDir: OUT, suffix: '-studio' }); const m = await sharp(r).metadata(); if (m.density !== 300) throw new Error('dpi ' + m.density); if (m.width !== 150 || m.height !== 200) throw new Error(`size ${m.width}x${m.height}`); return r; });

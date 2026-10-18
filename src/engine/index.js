@@ -7,6 +7,7 @@ const pdf = require('./pdf');
 const doc = require('./doc');
 const data = require('./data');
 const { TOOLS } = require('./tools');
+const flipbook = require('./flipbook');
 const { ext } = util;
 
 const kind = (f) => formats.kindOf(ext(f));
@@ -15,6 +16,7 @@ const kind = (f) => formats.kindOf(ext(f));
 async function convertFile(file, target, o = {}, ctl = {}) {
   const k = kind(file);
   const e = formats.norm(ext(file));
+  if (target === 'flipbook') return flipbook.makeFlipbook([file], o, ctl);
   switch (k) {
     case 'image':
       if (target === 'mp4' || target === 'webm') return media.convert(file, target, o, ctl);
@@ -46,6 +48,7 @@ async function runTool(id, files, o = {}, ctl = {}) {
     case 'compress-audio': return one((f, c) => media.convert(f, o.format || 'mp3', { ...sfx('-compressed'), audioBitrate: o.audioBitrate }, c));
     case 'compress-pdf': return one((f, c) => pdf.compress(f, o, c));
     case 'trim': return one((f, c) => o.fast ? media.trimFast(f, o, c) : media.convert(f, sameFmt(f), { ...sfx('-trimmed'), crf: 18 }, c));
+    case 'make-flipbook': return [await flipbook.makeFlipbook(files, o, ctl)];
     case 'merge-pdf': return [await pdf.merge(files, o)];
     case 'merge-audio': return [await media.mergeAudio(files, o.format || 'mp3', o, ctl)];
     case 'merge-video': return [await media.mergeVideo(files, o.format || 'mp4', o, ctl)];
@@ -104,4 +107,4 @@ async function runJob(job, ctl = {}) {
   throw new Error('Bad job');
 }
 
-module.exports = { runJob, convertFile, runTool, TOOLS, formats, image, media, pdf, doc, data, util, kind };
+module.exports = { runJob, convertFile, runTool, TOOLS, formats, image, media, pdf, doc, data, util, kind, flipbook };

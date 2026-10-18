@@ -23,26 +23,31 @@ Everything runs locally: FFmpeg, libvips (sharp), MuPDF and pdf-lib are bundled.
   - Rotate/flip, colour adjustments, mute, loudness normalization and speed.
   - Output to GIF/WebP, or to audio formats.
   - Batch apply, with a separate trim for each file.
-- **Tools tab** with 30 batch tools (listed below).
+- **Make flipbook** (new in 1.1): PDFs, images, documents (md/html/txt/docx) and e-books → a self-contained **offline HTML flipbook**. Output is a single `.html` file or a folder with `index.html` + `pages/`. It has a page-flip animation (click or drag the corners), a thumbnails sidebar, zoom (Ctrl+wheel, double-click, +/−) with panning, single or double page view, full screen, keyboard navigation and right-to-left books. Open it by double-clicking in any browser; no internet is needed.
+  The flip engine is `src/flipbook/flip-engine.{js,css}`, with no dependencies, and is meant to be shared with Mamba Reader.
+  Finished flipbooks have an **Open in Mamba Reader** button. It works when Reader is found as an installed exe (`%LOCALAPPDATA%\Programs\Mamba Reader\Mamba Reader.exe`, Program Files, or `MAMBA_READER_PATH`), or as a registered `mamba-reader://` (or `reader://`) protocol. The protocol handoff is `mamba-reader://open?path=<file>`.
+- **Tools tab** with 31 batch tools (listed below).
 - English UI plus **Arabic UI (RTL)**. Light theme.
 
 ![Image Studio](docs/image.png)
 ![Video Studio](docs/video.png)
+![Flipbook](docs/flipbook.png)
 
 ## Supported conversions
-There are 929 input→output pairs, or 848 unique ones when aliases such as jpeg/jpg are counted once.
+There are 961 input→output pairs, or 875 unique ones when aliases such as jpeg/jpg are counted once.
 
 | Kind | Inputs | Outputs |
 |---|---|---|
-| Images | png, jpg, jpeg, jfif, webp, avif, tif, tiff, gif, bmp, heic, heif, svg, ico, tga, jp2, ppm, pgm, pcx | jpg, webp, avif, tiff, gif, bmp, ico, pdf, png, mp4, webm |
+| Images | png, jpg, jpeg, jfif, webp, avif, tif, tiff, gif, bmp, heic, heif, svg, ico, tga, jp2, ppm, pgm, pcx | jpg, webp, avif, tiff, gif, bmp, ico, pdf, png, mp4, webm, flipbook |
 | Videos | mp4, mov, mkv, avi, webm, flv, wmv, m4v, mpg, mpeg, 3gp, ts, mts, m2ts, ogv, vob, f4v, asf | mov, mkv, avi, webm, flv, wmv, m4v, mpg, ts, ogv, 3gp, gif, webp, mp3, wav, aac, m4a, flac, ogg, opus, wma, aiff, ac3, mp2, amr, png, jpg, mp4 |
 | Audio | mp3, wav, aac, m4a, flac, ogg, oga, opus, wma, aiff, aif, amr, ac3, mka, caf, m4b, wv, mp2, au | wav, aac, m4a, flac, ogg, opus, wma, aiff, ac3, mp2, amr, mp3 |
-| PDF | pdf | png, jpg, webp, tiff, txt, html |
-| E-books / XPS | epub, xps, oxps, cbz, fb2, mobi | pdf, png, jpg, txt |
-| Documents | md, markdown, html, htm, txt, docx | html, pdf, txt, docx, md |
+| PDF | pdf | png, jpg, webp, tiff, txt, html, flipbook |
+| E-books / XPS | epub, xps, oxps, cbz, fb2, mobi | pdf, png, jpg, txt, flipbook |
+| Documents | md, markdown, html, htm, txt, docx | html, pdf, txt, docx, md, flipbook |
 | Data | csv, tsv, json | json, tsv, html, csv |
 
 ## Tools
+- 📖 **Make flipbook** — accepts pdf/image/doc/ebook (combines several files into one book)
 - 🗜️ **Compress image** — accepts image
 - 🎬 **Compress video** — accepts video
 - 🎧 **Compress audio** — accepts audio

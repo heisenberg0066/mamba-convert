@@ -18,6 +18,7 @@ module.exports = async function selfTest(E, outDir) {
   await ok('pdf→png (mupdf)', () => E.runJob({ type: 'convert', files: [pdf], target: 'png' }));
   await ok('merge pdf', () => E.runJob({ type: 'tool', tool: 'merge-pdf', files: [pdf, pdf] }));
   await ok('images→pdf', () => E.runJob({ type: 'tool', tool: 'images-to-pdf', files: [png, png] }));
+  await ok('pdf→flipbook', () => E.runJob({ type: 'convert', files: [pdf], target: 'flipbook' }));
   const md = path.join(outDir, 't.md'); fs.writeFileSync(md, '# Hi\n\nمرحبا');
   await ok('md→pdf (chromium)', () => E.runJob({ type: 'convert', files: [md], target: 'pdf' }));
   const report = path.join(outDir, 'mamba-selftest.txt'); fs.writeFileSync(report, lines.join('\n') + '\n');

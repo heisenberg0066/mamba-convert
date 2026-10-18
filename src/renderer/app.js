@@ -66,7 +66,7 @@ function renderConvert() {
     common = common || [];
     const g = el('div', { class: 'group' }, el('h3', {}, `${t('kind_' + kind)} `, el('small', {}, `· ${list.length} ${t('files')} · ${t('convertTo')}`)));
     if (!common.length) g.append(el('div', { class: 'muted' }, t('noTargets')));
-    const row = el('div', { class: 'fmts' }, common.map((tg) => el('button', { class: 'fmt', onclick: () => convertGroup(list, tg) }, tg)));
+    const row = el('div', { class: 'fmts' }, common.map((tg) => el('button', { class: 'fmt' + (tg === 'flipbook' ? ' flip' : ''), onclick: () => convertGroup(list, tg) }, tg === 'flipbook' ? '📖 ' + t('flipbook') : tg)));
     g.append(row); box.append(g);
   }
 }
@@ -78,7 +78,8 @@ function convertOptions(kind) {
   return {};
 }
 async function convertGroup(list, target) {
-  const jobs = list.map((f) => ({ type: 'convert', files: [f.path], target, options: convertOptions(f.kind), label: f.name, op: `→ ${target.toUpperCase()}` }));
+  if (target === 'flipbook' && list.length > 1 && list.every((f) => f.kind === 'image')) return enqueue([{ type: 'tool', tool: 'make-flipbook', files: list.map((f) => f.path), options: {}, label: `${list.length} ${t('files')}`, op: '→ ' + t('flipbook'), flip: true }]);
+  const jobs = list.map((f) => ({ type: 'convert', files: [f.path], target, options: target === 'flipbook' ? {} : convertOptions(f.kind), label: f.name, op: target === 'flipbook' ? '→ ' + t('flipbook') : `→ ${target.toUpperCase()}`, flip: target === 'flipbook' }));
   await enqueue(jobs);
 }
 function renderSupported() {
@@ -318,7 +319,7 @@ const Tools = {
     dropZone(drop, addPaths);
     renderFiles();
     const run = el('button', { class: 'primary', onclick: async () => {
-      if (!list.length) return toast(t('addFiles')); if (tool.multi && list.length < 2 && id !== 'images-to-pdf') return toast(t('needTwo'));
+      if (!list.length) return toast(t('addFiles')); if (tool.multi && list.length < (tool.minFiles || 2) && id !== 'images-to-pdf') return toast(t('needTwo'));
       const options = { ...vals }; const name = t('tool.' + id);
       const jobs = tool.multi ? [{ type: 'tool', tool: id, files: list.map((f) => f.path), options, label: `${list.length} ${t('files')}`, op: name }] : list.map((f) => ({ type: 'tool', tool: id, files: [f.path], options, label: f.name, op: name }));
       await enqueue(jobs);
@@ -333,8 +334,8 @@ function renderToolGrid() { $('#toolGrid').replaceChildren(...catalog.tools.map(
 // ---------------- QUEUE ----------------
 const Q = { jobs: [], byId: new Map() };
 async function enqueue(jobs) {
-  const ids = await api.enqueue(jobs.map(({ label, op, ...j }) => j));
-  ids.forEach((id, i) => { const rec = { id, label: jobs[i].label, op: jobs[i].op, status: 'queued', progress: 0 }; Q.jobs.unshift(rec); Q.byId.set(id, rec); });
+  const ids = await api.enqueue(jobs.map(({ label, op, flip, ...j }) => j));
+  ids.forEach((id, i) => { const rec = { id, label: jobs[i].label, op: jobs[i].op, flip: jobs[i].flip || jobs[i].tool === 'make-flipbook', status: 'queued', progress: 0 }; Q.jobs.unshift(rec); Q.byId.set(id, rec); });
   $('#queue').classList.remove('collapsed'); $('#qToggle').textContent = '▾'; renderQueue(); toast(t('addedN', { n: ids.length }));
 }
 api.onJob((u) => { const r = Q.byId.get(u.id); if (!r) return; Object.assign(r, u); renderJob(r); renderTotals(); if (u.status === 'done' || u.status === 'error') { const active = Q.jobs.some((j) => j.status === 'queued' || j.status === 'running'); if (!active) toast(Q.jobs.some((j) => j.status === 'error') ? `⚠ ${t('error')}` : `✓ ${t('done')}`); } });
@@ -342,7 +343,8 @@ function renderJob(r) {
   let row = document.getElementById('job-' + r.id);
   const icon = { queued: '⏳', running: '⚙️', done: '✅', error: '⚠️', cancelled: '⏹' }[r.status];
   const btns = el('div', { class: 'btns' });
-  if (r.status === 'done' && r.outputs && r.outputs.length) { btns.append(el('button', { onclick: () => api.showItem(r.outputs[0]) }, t('show')), el('button', { onclick: () => api.openPath(r.outputs[0]) }, t('open'))); }
+  if (r.status === 'done' && r.outputs && r.outputs.length) { btns.append(el('button', { onclick: () => api.showItem(r.outputs[0]) }, t('show')), el('button', { onclick: () => api.openPath(r.outputs[0]) }, r.flip ? t('openBrowser') : t('open')));
+    if (r.flip) btns.append(el('button', { class: readerOK ? 'reader' : 'reader off', title: readerOK ? '' : t('readerMissing'), onclick: async () => { const res = await api.openInReader(r.outputs[0]); if (!res.ok) toast(t('readerMissing')); } }, '📖 ' + t('openInReader'))); }
   if (r.status === 'queued' || r.status === 'running') btns.append(el('button', { onclick: () => api.cancel(r.id) }, t('cancel')));
   if (r.status === 'error' || r.status === 'cancelled') btns.append(el('button', { onclick: () => api.retry(r.id) }, t('retry')));
   const st = r.status === 'done' ? `${t('done')} · ${(r.outputs || []).length > 1 ? r.outputs.length + ' ' + t('files') + ' · ' : ''}${fmtBytes((r.sizes || []).reduce((a, b) => a + b, 0))}` : r.status === 'error' ? (r.error || '').replace(/^Error invoking remote method '[^']+': /, '').slice(0, 220) : r.status === 'running' ? `${t('running')} ${Math.round((r.progress || 0) * 100)}%` : t(r.status);
@@ -355,9 +357,12 @@ $('#qClear').addEventListener('click', () => { Q.jobs = Q.jobs.filter((j) => j.s
 $('#qToggle').addEventListener('click', () => { $('#queue').classList.toggle('collapsed'); $('#qToggle').textContent = $('#queue').classList.contains('collapsed') ? '▴' : '▾'; });
 $('#qOpen').addEventListener('click', () => { const last = Q.jobs.find((j) => j.status === 'done' && j.outputs && j.outputs.length); if (S.outputMode === 'folder' && S.outputDir) api.openOutputFolder(S.outputDir); else if (last) api.showItem(last.outputs[0]); else api.openOutputFolder(); });
 
+let readerOK = false;
+async function refreshReader() { const was = readerOK; readerOK = await api.readerStatus().catch(() => false); if (was !== readerOK) renderQueue(); }
+window.addEventListener('focus', refreshReader);
 // ---------------- boot ----------------
 (async () => {
   S = await api.getSettings(); catalog = await api.catalog();
-  Img.init(); Vid.init(); applyI18n();
+  Img.init(); Vid.init(); await refreshReader(); applyI18n();
   window.__mamba = { Img, Vid, Tools, files, describe, showTab, renderConvert, uniqAdd, catalog, setFiles: async (p) => { uniqAdd(files, await describe(p)); renderConvert(); } };
 })();

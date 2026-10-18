@@ -184,4 +184,4 @@ async function protect(file, o = {}) {
 
 async function pageCount(file) { try { return (await load(file)).getPageCount(); } catch (_) { const { doc } = await openDoc(file); return doc.countPages(); } }
 
-module.exports = { merge, split, extractPages, rotate, pageNumbers, stripMetadata, toImages, toText, docToPdf, compress, protect, pageCount, parseRanges };
+module.exports = { _openDoc: openDoc, merge, split, extractPages, rotate, pageNumbers, stripMetadata, toImages, toText, docToPdf, compress, protect, pageCount, parseRanges };

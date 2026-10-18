@@ -40,7 +40,8 @@ window.I18N = {
     'o.same': 'Same as input', 'o.crf': 'Quality (CRF)', 'o.size': 'Target size', 'o.lossless': 'Lossless optimise', 'o.strong': 'Strong (rasterise pages)', 'o.each': 'Every page', 'o.ranges': 'By ranges', 'o.fit': 'Fit image',
     'o.a4': 'A4', 'o.letter': 'Letter', 'o.px': 'Pixels', 'o.percent': 'Percent', 'o.': 'Original',
     about: 'Mamba Convert — free, local-only file converter for Ammar. Powered by FFmpeg, libvips (sharp), MuPDF, pdf-lib.',
-    supported: 'Supported conversions', addedN: 'Added {n} job(s) to the queue', removed: 'Remove',
+    supported: 'Supported conversions', flipbook: 'Flipbook', openBrowser: 'Open in browser', openInReader: 'Open in Mamba Reader', readerMissing: 'Mamba Reader is not installed — the flipbook still opens in any browser.',
+    'tool.make-flipbook': 'Make flipbook', 'p.pageWidth': 'Page width px', 'p.rtl': 'Right-to-left book (Arabic)', 'p.title': 'Title (optional)', 'o.single': 'Single .html file', 'o.folder': 'Folder with index.html', addedN: 'Added {n} job(s) to the queue', removed: 'Remove',
   },
   ar: {
     appName: 'مامبا كونفرت', tagline: 'يعمل بالكامل دون إنترنت · لا شيء يغادر جهازك',
@@ -79,6 +80,7 @@ window.I18N = {
     'o.same': 'نفس صيغة الإدخال', 'o.crf': 'الجودة (CRF)', 'o.size': 'الحجم المستهدف', 'o.lossless': 'تحسين بدون فقد', 'o.strong': 'قوي (تحويل الصفحات لصور)', 'o.each': 'كل صفحة', 'o.ranges': 'حسب النطاقات', 'o.fit': 'بحجم الصورة',
     'o.a4': 'A4', 'o.letter': 'Letter', 'o.px': 'بكسل', 'o.percent': 'نسبة', 'o.': 'الأصلي',
     about: 'مامبا كونفرت — محوّل ملفات مجاني يعمل محلياً لعمّار. مبني على FFmpeg و libvips و MuPDF و pdf-lib.',
-    supported: 'التحويلات المدعومة', addedN: 'تمت إضافة {n} مهمة إلى القائمة', removed: 'إزالة',
+    supported: 'التحويلات المدعومة', flipbook: 'كتاب تقليب', openBrowser: 'فتح في المتصفح', openInReader: 'فتح في مامبا ريدر', readerMissing: 'مامبا ريدر غير مثبت — يمكن فتح الكتاب في أي متصفح.',
+    'tool.make-flipbook': 'إنشاء كتاب تقليب', 'p.pageWidth': 'عرض الصفحة بالبكسل', 'p.rtl': 'كتاب من اليمين لليسار (عربي)', 'p.title': 'العنوان (اختياري)', 'o.single': 'ملف html واحد', 'o.folder': 'مجلد مع index.html', addedN: 'تمت إضافة {n} مهمة إلى القائمة', removed: 'إزالة',
   },
 };
