@@ -26,6 +26,7 @@ Everything runs locally: FFmpeg, libvips (sharp), MuPDF and pdf-lib are bundled.
 - **Make flipbook** (new in 1.1): PDFs, images, documents (md/html/txt/docx) and e-books → a self-contained **offline HTML flipbook**. Output is a single `.html` file or a folder with `index.html` + `pages/`. It has a page-flip animation (click or drag the corners), a thumbnails sidebar, zoom (Ctrl+wheel, double-click, +/−) with panning, single or double page view, full screen, keyboard navigation and right-to-left books. Open it by double-clicking in any browser; no internet is needed.
   The flip engine is `src/flipbook/flip-engine.{js,css}`, with no dependencies, and is meant to be shared with Mamba Reader.
   Finished flipbooks have an **Open in Mamba Reader** button. It works when Reader is found as an installed exe (`%LOCALAPPDATA%\Programs\Mamba Reader\Mamba Reader.exe`, Program Files, or `MAMBA_READER_PATH`), or as a registered `mamba-reader://` (or `reader://`) protocol. The protocol handoff is `mamba-reader://open?path=<file>`.
+  **Edit PDF** (in the wheel's PDF tools and on the Tools tab) opens Mamba Reader 1.1.0+ in its PDF editor, via `--edit <file>` or `mamba-reader://edit?path=<file>`.
 - **Tools tab** with 31 batch tools (listed below).
 - English UI plus **Arabic UI (RTL)**. Light theme.
 

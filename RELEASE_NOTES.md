@@ -1,3 +1,23 @@
+**Mamba Convert 1.3.0: Edit PDF**
+
+* **New: Edit PDF.** It opens a PDF in Mamba Reader's visual editor, which needs Reader 1.1.0 or later. There you can:
+  * edit and delete text, add text boxes;
+  * move, resize, replace and insert images;
+  * whiteout and redact;
+  * sign (draw, type or import), add initials and date stamps;
+  * fill form fields;
+  * add, delete, reorder, rotate and merge pages;
+  * undo/redo.
+
+  Saving writes a new `<name> (edited).pdf`.
+* **Where to find it:**
+  * In the right-click wheel, under **PDF tools → Edit PDF**, when one PDF is selected.
+  * In the **Tools** tab, as the **Edit PDF** card.
+* **How it opens Reader:** Convert starts `Mamba Reader.exe --edit <file>`, falling back to `mamba-reader://edit?path=…`. The command line `Mamba Convert.exe --edit-in-reader <file>` does the same.
+* **Includes everything from 1.2.1**, the wheel flicker fix (notes below).
+
+---
+
 **Mamba Convert 1.2.1: wheel flicker fix**
 
 Fixed: the right-click wheel flickered, rapidly appearing and disappearing, once the mouse rested on it.
