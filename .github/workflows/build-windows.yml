@@ -127,6 +127,20 @@ jobs:
           $run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).MambaConvert
           Write-Host "Start-with-Windows entry: $run"
 
+      - name: Wheel stays visible (flicker probe via the registry verb, 1 and 3 files, cold and with the tray helper)
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $t = "$env:RUNNER_TEMP\flicker"; New-Item -ItemType Directory -Force $t | Out-Null
+          Copy-Item "$env:RUNNER_TEMP\explorer\one.jpg", "$env:RUNNER_TEMP\explorer\two.jpg", "$env:RUNNER_TEMP\explorer\three.jpg" $t
+          $one = @("$t\one.jpg"); $three = @("$t\one.jpg", "$t\two.jpg", "$t\three.jpg")
+          $fail = @()
+          foreach ($c in @(@{ L = '1 file, cold'; F = $one; H = $false }, @{ L = '3 files, cold'; F = $three; H = $false }, @{ L = '1 file, tray helper running'; F = $one; H = $true }, @{ L = '3 files, tray helper running'; F = $three; H = $true })) {
+            try { & .\test\flicker-probe.ps1 -Files $c.F -WithHelper:$c.H -Seconds 6 -Label $c.L } catch { Write-Host "::error::$($_.Exception.Message)"; $fail += $c.L }
+          }
+          Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
+          if ($fail.Count) { throw "flicker in: $($fail -join '; ')" }
+
       - name: Global hotkey on an Explorer selection (best effort)
         continue-on-error: true
         shell: pwsh
