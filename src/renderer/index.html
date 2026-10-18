@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: file: blob:; media-src 'self' file: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'">
+<title>Mamba Convert</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><div class="logo">M</div><div><div class="name" data-i18n="appName"></div><div class="tag" data-i18n="tagline"></div></div></div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="convert" data-i18n="tabConvert"></button>
+    <button class="tab" data-tab="image" data-i18n="tabImage"></button>
+    <button class="tab" data-tab="video" data-i18n="tabVideo"></button>
+    <button class="tab" data-tab="tools" data-i18n="tabTools"></button>
+  </nav>
+  <div class="right">
+    <label class="out"><span data-i18n="output"></span>
+      <select id="outMode"><option value="same" data-i18n="outSame"></option><option value="folder" data-i18n="outFolder"></option></select>
+    </label>
+    <button id="outPick" class="ghost small" title=""></button>
+    <div class="lang"><button data-lang="en">EN</button><button data-lang="ar">عربي</button></div>
+  </div>
+</header>
+
+<main>
+  <!-- CONVERT -->
+  <section id="tab-convert" class="page active">
+    <div id="drop" class="drop big" tabindex="0">
+      <div class="drop-icon">⇪</div>
+      <div class="drop-title" data-i18n="dropTitle"></div>
+      <div class="drop-sub" data-i18n="dropSub"></div>
+    </div>
+    <div id="convertArea" class="hidden">
+      <div class="row between"><div class="row"><button id="addMore" class="ghost" data-i18n="addMore"></button><button id="clearFiles" class="ghost" data-i18n="clear"></button></div>
+        <details class="opts"><summary data-i18n="options"></summary>
+          <div class="grid2">
+            <label><span data-i18n="imgQuality"></span> <output id="cvQv">85</output><input id="cvQuality" type="range" min="1" max="100" value="85"></label>
+            <label><span data-i18n="videoCrf"></span> <output id="cvCv">23</output><input id="cvCrf" type="range" min="16" max="40" value="23"></label>
+            <label><span data-i18n="audioBitrate"></span><select id="cvAbr"><option>96</option><option>128</option><option selected>192</option><option>256</option><option>320</option></select></label>
+            <label><span data-i18n="pdfDpi"></span><input id="cvDpi" type="number" value="150" min="36" max="600"></label>
+            <label class="chk"><input id="cvKeepMeta" type="checkbox"> <span data-i18n="keepMeta"></span></label>
+          </div>
+        </details>
+      </div>
+      <div id="fileChips" class="chips"></div>
+      <div id="targetGroups"></div>
+    </div>
+    <details class="supported"><summary data-i18n="supported"></summary><div id="supportedList"></div></details>
+  </section>
+
+  <!-- IMAGE STUDIO -->
+  <section id="tab-image" class="page studio">
+    <aside class="side list">
+      <div class="drop mini" id="imgDrop"><span data-i18n="studioEmpty"></span></div>
+      <button class="ghost small" id="imgUseConvert" data-i18n="useConvertFiles"></button>
+      <div id="imgList" class="thumbs"></div>
+    </aside>
+    <div class="stage-wrap">
+      <div class="stage-bar">
+        <span id="imgInfo" class="muted"></span>
+        <span class="row"><button id="imgCropBtn" class="ghost small" data-i18n="editCrop"></button><button id="imgCropClear" class="ghost small" data-i18n="clearCrop"></button>
+          <select id="imgCropAspect" class="small"><option value="" data-i18n="free"></option><option value="1">1:1</option><option value="1.3333">4:3</option><option value="1.7778">16:9</option><option value="0.8">4:5</option><option value="0.5625">9:16</option></select>
+          <button id="imgBefore" class="ghost small" data-i18n="original"></button></span>
+      </div>
+      <div class="stage" id="imgStage"><div class="canvas" id="imgCanvas"><img id="imgView" alt=""><div class="crop-layer hidden" id="imgCrop"></div></div><div class="spinner hidden" id="imgSpin"></div></div>
+    </div>
+    <aside class="side panel" id="imgPanel">
+      <fieldset><legend data-i18n="resize"></legend>
+        <div class="seg" id="imgResizeMode"><button data-v="none" data-i18n="none" class="on"></button><button data-v="px" data-i18n="pixels"></button><button data-v="percent" data-i18n="percent"></button></div>
+        <div class="grid2 rz-px"><label><span data-i18n="width"></span><input type="number" id="imgW" min="1"></label><label><span data-i18n="height"></span><input type="number" id="imgH" min="1"></label></div>
+        <label class="rz-pc"><span data-i18n="percent"></span> <output id="imgPcV">50</output>%<input type="range" id="imgPc" min="1" max="400" value="50"></label>
+        <label class="chk rz-px"><input type="checkbox" id="imgKeep" checked> <span data-i18n="keepAspect"></span></label>
+        <label class="rz-px"><span data-i18n="fit"></span><select id="imgFit"><option value="inside" data-i18n="fit_inside"></option><option value="cover" data-i18n="fit_cover"></option><option value="contain" data-i18n="fit_contain"></option></select></label>
+      </fieldset>
+      <fieldset><legend data-i18n="rotateFlip"></legend>
+        <div class="row wrap"><button class="ghost small" id="imgRotL" data-i18n="rotL"></button><button class="ghost small" id="imgRotR" data-i18n="rotR"></button><button class="ghost small" id="imgRot180" data-i18n="rot180"></button></div>
+        <label><span data-i18n="angle"></span> <output id="imgAngV">0</output>°<input type="range" id="imgAng" min="-180" max="180" value="0"></label>
+        <div class="row wrap"><label class="chk"><input type="checkbox" id="imgFlipH"> <span data-i18n="flipH"></span></label><label class="chk"><input type="checkbox" id="imgFlipV"> <span data-i18n="flipV"></span></label></div>
+      </fieldset>
+      <fieldset><legend data-i18n="adjust"></legend>
+        <label><span data-i18n="brightness"></span> <output>0</output><input type="range" data-adj="brightness" min="-100" max="100" value="0"></label>
+        <label><span data-i18n="contrast"></span> <output>0</output><input type="range" data-adj="contrast" min="-100" max="100" value="0"></label>
+        <label><span data-i18n="saturation"></span> <output>0</output><input type="range" data-adj="saturation" min="-100" max="100" value="0"></label>
+        <label><span data-i18n="hue"></span> <output>0</output><input type="range" data-adj="hue" min="0" max="359" value="0"></label>
+        <label><span data-i18n="blur"></span> <output>0</output><input type="range" data-adj="blur" min="0" max="20" step="0.5" value="0"></label>
+        <div class="row wrap"><label class="chk"><input type="checkbox" id="imgGray"> <span data-i18n="grayscale"></span></label><label class="chk"><input type="checkbox" id="imgInv"> <span data-i18n="invert"></span></label><label class="chk"><input type="checkbox" id="imgSharp"> <span data-i18n="sharpen"></span></label></div>
+      </fieldset>
+      <fieldset><legend data-i18n="removeBg"></legend>
+        <label class="chk"><input type="checkbox" id="imgBg"> <span data-i18n="removeBg"></span></label>
+        <label><span data-i18n="tolerance"></span> <output id="imgTolV">25</output><input type="range" id="imgTol" min="1" max="100" value="25"></label>
+        <label><span data-i18n="bgColor"></span><input type="text" id="imgBgColor" placeholder="#ffffff"></label>
+        <p class="note" data-i18n="removeBgNote"></p>
+      </fieldset>
+      <fieldset><legend data-i18n="outputFmt"></legend>
+        <label><span data-i18n="format"></span><select id="imgFmt"><option>jpg</option><option>png</option><option>webp</option><option>avif</option><option>tiff</option><option>gif</option><option>bmp</option><option>ico</option><option>pdf</option></select></label>
+        <label><span data-i18n="quality"></span> <output id="imgQV">85</output><input type="range" id="imgQ" min="1" max="100" value="85"></label>
+        <div class="grid2"><label><span data-i18n="targetKB"></span><input type="number" id="imgKB" min="1" placeholder="—"></label><label><span data-i18n="dpi"></span><input type="number" id="imgDpi" min="1" max="2400" placeholder="—"></label></div>
+        <label class="chk"><input type="checkbox" id="imgStrip" checked> <span data-i18n="stripMeta"></span></label>
+      </fieldset>
+      <div class="actions"><button class="ghost" id="imgReset" data-i18n="reset"></button><button class="ghost" id="imgOne" data-i18n="applyCurrent"></button><button class="primary" id="imgAll" data-i18n="applyAll"></button></div>
+    </aside>
+  </section>
+
+  <!-- VIDEO STUDIO -->
+  <section id="tab-video" class="page studio">
+    <aside class="side list">
+      <div class="drop mini" id="vidDrop"><span data-i18n="videoEmpty"></span></div>
+      <button class="ghost small" id="vidUseConvert" data-i18n="useConvertFiles"></button>
+      <div id="vidList" class="vlist"></div>
+    </aside>
+    <div class="stage-wrap">
+      <div class="stage-bar"><span id="vidInfo" class="muted"></span>
+        <span class="row"><button id="vidCropBtn" class="ghost small" data-i18n="editCrop"></button><button id="vidCropClear" class="ghost small" data-i18n="clearCrop"></button>
+          <select id="vidCropAspect" class="small"><option value="" data-i18n="free"></option><option value="1">1:1</option><option value="1.7778">16:9</option><option value="0.5625">9:16</option><option value="1.3333">4:3</option><option value="0.8">4:5</option></select>
+          <label class="chk small"><input type="checkbox" id="vidProcessed"> <span data-i18n="processedFrame"></span></label></span>
+      </div>
+      <div class="stage" id="vidStage"><div class="canvas" id="vidCanvas"><video id="vidView" preload="metadata"></video><img id="vidFrame" class="hidden" alt=""><div class="crop-layer hidden" id="vidCrop"></div></div><div class="spinner hidden" id="vidSpin"></div></div>
+      <div class="timeline">
+        <button id="vidPlay" class="ghost small">▶</button>
+        <div class="track" id="vidTrack"><div class="sel" id="vidSel"></div><div class="head" id="vidHead"></div></div>
+        <span id="vidTime" class="mono">0:00.0</span>
+      </div>
+      <div class="row trimrow">
+        <button class="ghost small" id="vidSetStart" data-i18n="setStart"></button>
+        <label class="inline"><span data-i18n="start"></span><input id="vidStart" class="mono" value="0:00.0"></label>
+        <label class="inline"><span data-i18n="end"></span><input id="vidEnd" class="mono" value=""></label>
+        <button class="ghost small" id="vidSetEnd" data-i18n="setEnd"></button>
+        <span class="muted"><span data-i18n="duration"></span>: <b id="vidLen">–</b></span>
+        <p id="vidNote" class="note hidden" data-i18n="notPlayable"></p>
+      </div>
+    </div>
+    <aside class="side panel" id="vidPanel">
+      <fieldset><legend data-i18n="outputFmt"></legend>
+        <label><span data-i18n="format"></span><select id="vidFmt"><optgroup label="Video"><option>mp4</option><option>webm</option><option>mkv</option><option>mov</option><option>avi</option><option>m4v</option><option>wmv</option><option>flv</option><option>mpg</option><option>ts</option><option>ogv</option><option>3gp</option></optgroup><optgroup label="Animated"><option>gif</option><option>webp</option></optgroup><optgroup label="Audio"><option>mp3</option><option>m4a</option><option>wav</option><option>flac</option><option>ogg</option><option>opus</option><option>aac</option></optgroup><optgroup label="Still"><option value="png">png (frame)</option><option value="jpg">jpg (frame)</option></optgroup></select></label>
+      </fieldset>
+      <fieldset class="v-only"><legend data-i18n="resolution"></legend>
+        <select id="vidRes"><option value="" data-i18n="resOriginal"></option><option value="2160">2160p (4K)</option><option value="1440">1440p</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option><option value="360">360p</option><option value="240">240p</option><option value="custom" data-i18n="custom"></option></select>
+        <div class="grid2 hidden" id="vidCustom"><label><span data-i18n="width"></span><input type="number" id="vidW" min="16"></label><label><span data-i18n="height"></span><input type="number" id="vidH" min="16"></label></div>
+        <label><span data-i18n="fps"></span><select id="vidFps"><option value="" data-i18n="fpsOriginal"></option><option>12</option><option>15</option><option>24</option><option>25</option><option>30</option><option>50</option><option>60</option></select></label>
+      </fieldset>
+      <fieldset class="v-only enc-only"><legend data-i18n="rate"></legend>
+        <div class="seg" id="vidRate"><button data-v="crf" class="on" data-i18n="rate_crf"></button><button data-v="bitrate" data-i18n="rate_bitrate"></button><button data-v="size" data-i18n="rate_size"></button></div>
+        <label class="r-crf"><span>CRF</span> <output id="vidCrfV">23</output><input type="range" id="vidCrf" min="14" max="42" value="23"></label>
+        <label class="r-bitrate hidden"><span data-i18n="videoBitrate"></span><input type="number" id="vidBr" value="2500" min="50"></label>
+        <label class="r-size hidden"><span data-i18n="targetMB"></span><input type="number" id="vidMB" value="25" min="0.1" step="0.5"></label>
+        <div class="muted"><span data-i18n="estimate"></span>: <b id="vidEst">–</b></div>
+      </fieldset>
+      <fieldset class="gif-only hidden"><legend>GIF / WebP</legend>
+        <div class="grid2"><label><span data-i18n="gifFps"></span><input type="number" id="vidGifFps" value="12" min="1" max="50"></label><label><span data-i18n="gifWidth"></span><input type="number" id="vidGifW" value="480" min="32"></label></div>
+      </fieldset>
+      <fieldset class="v-only"><legend data-i18n="rotateFlip"></legend>
+        <div class="seg" id="vidRot"><button data-v="0" class="on">0°</button><button data-v="90">90°</button><button data-v="180">180°</button><button data-v="270">270°</button></div>
+        <div class="row wrap"><label class="chk"><input type="checkbox" id="vidFlipH"> <span data-i18n="flipH"></span></label><label class="chk"><input type="checkbox" id="vidFlipV"> <span data-i18n="flipV"></span></label></div>
+      </fieldset>
+      <fieldset class="v-only"><legend data-i18n="adjust"></legend>
+        <label><span data-i18n="brightness"></span> <output>0</output><input type="range" data-vadj="brightness" min="-100" max="100" value="0"></label>
+        <label><span data-i18n="contrast"></span> <output>0</output><input type="range" data-vadj="contrast" min="-100" max="100" value="0"></label>
+        <label><span data-i18n="saturation"></span> <output>0</output><input type="range" data-vadj="saturation" min="-100" max="100" value="0"></label>
+        <label class="chk"><input type="checkbox" id="vidGray"> <span data-i18n="grayscale"></span></label>
+      </fieldset>
+      <fieldset><legend data-i18n="audio"></legend>
+        <label><span data-i18n="audioBitrate"></span><select id="vidAbr"><option>64</option><option>96</option><option selected>128</option><option>160</option><option>192</option><option>256</option><option>320</option></select></label>
+        <div class="row wrap"><label class="chk v-only"><input type="checkbox" id="vidMute"> <span data-i18n="mute"></span></label><label class="chk"><input type="checkbox" id="vidNorm"> <span data-i18n="normalize"></span></label></div>
+        <label><span data-i18n="speed"></span><select id="vidSpeed"><option>0.25</option><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option><option>4</option></select></label>
+        <label class="chk"><input type="checkbox" id="vidStrip"> <span data-i18n="stripMeta"></span></label>
+      </fieldset>
+      <div class="actions"><button class="ghost" id="vidReset" data-i18n="reset"></button><button class="ghost" id="vidOne" data-i18n="applyCurrent"></button><button class="primary" id="vidAll" data-i18n="applyAll"></button></div>
+    </aside>
+  </section>
+
+  <!-- TOOLS -->
+  <section id="tab-tools" class="page tools">
+    <aside class="toolgrid" id="toolGrid"></aside>
+    <div class="toolpane" id="toolPane"><div class="empty" data-i18n="pickTool"></div></div>
+  </section>
+</main>
+
+<footer id="queue" class="queue collapsed">
+  <div class="qhead"><button id="qToggle" class="ghost small">▴</button><b data-i18n="queue"></b> <span id="qCount" class="badge">0</span>
+    <div class="qbar"><div id="qTotal"></div></div>
+    <button id="qOpen" class="ghost small" data-i18n="openFolder"></button><button id="qClear" class="ghost small" data-i18n="clearDone"></button></div>
+  <div id="qList" class="qlist"><div class="empty" data-i18n="emptyQueue"></div></div>
+</footer>
+<div id="toast" class="toast hidden"></div>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

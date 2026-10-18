@@ -1,0 +1,110 @@
+{
+  "name": "mamba-convert",
+  "productName": "Mamba Convert",
+  "version": "1.0.0",
+  "description": "Offline, local-only file converter and toolbox for Windows",
+  "author": "Ammar",
+  "license": "MIT",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/run-tests.js",
+    "dist:win": "electron-builder --win --x64"
+  },
+  "dependencies": {
+    "jszip": "^3.10.2",
+    "mammoth": "^1.13.0",
+    "marked": "^18.1.1",
+    "mupdf": "^1.28.1",
+    "pdf-lib": "^1.17.1",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "resedit": "^2.0.3"
+  },
+  "build": {
+    "appId": "com.ammar.mambaconvert",
+    "productName": "Mamba Convert",
+    "copyright": "Free for personal use",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "build/icon.png",
+      "package.json",
+      "!**/*.map",
+      "!node_modules/@img/sharp-linux*/**",
+      "!node_modules/@img/sharp-libvips-linux*/**",
+      "!node_modules/@img/sharp-darwin*/**",
+      "!node_modules/@img/sharp-libvips-darwin*/**",
+      "!node_modules/resedit/**"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/sharp/**",
+      "node_modules/@img/**",
+      "node_modules/mupdf/**"
+    ],
+    "extraResources": [
+      {
+        "from": "vendor/ffmpeg-win",
+        "to": "bin",
+        "filter": [
+          "ffmpeg.exe",
+          "ffprobe.exe",
+          "LICENSE"
+        ]
+      },
+      {
+        "from": "vendor/sharp-win32-x64",
+        "to": "node_modules/@img/sharp-win32-x64"
+      }
+    ],
+    "npmRebuild": false,
+    "afterPack": "build/afterPack.js",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Mamba Convert",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "artifactName": "MambaConvert-Setup-${version}-x64.${ext}",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "MambaConvert-Portable-${version}-x64.${ext}"
+    },
+    "artifactName": "MambaConvert-${version}-win-${arch}.${ext}"
+  }
+}
