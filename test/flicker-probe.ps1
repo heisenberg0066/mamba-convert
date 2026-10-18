@@ -100,7 +100,7 @@ while ($sw.ElapsedMilliseconds -lt ($Seconds * 1000)) {
 $wins = @([W]::Find($title)).Count
 Write-Host "[$Label] $samples samples over $Seconds s: hidden=$hidden transitions=$transitions notOrange=$notOrange colourChanges=$changes wheelWindows=$wins $trace"
 Write-Host "[$Label] slice colours seen: $(($colours.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 8 | ForEach-Object { "#$($_.Key)x$($_.Value)" }) -join ' ')"
-$procs = @(Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue)
+$procs = @(Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue); $pids = @($procs | ForEach-Object { $_.Id })
 Write-Host "[$Label] Mamba Convert processes still running: $($procs.Count)"
 $log = Join-Path $env:APPDATA 'Mamba Convert\logs\wheel.log'
 if (Test-Path $log) { Write-Host "[$Label] --- $log (tail) ---"; Get-Content $log -Tail 40 }
@@ -109,6 +109,13 @@ if ($hidden -gt 0 -or $transitions -gt 0) { throw "[$Label] FLICKER: the wheel w
 # A steady wheel renders the hovered slice in one colour; a re-animating wheel cycles through fade colours.
 if ($changes -gt 2) { throw "[$Label] VISUAL FLICKER: the hovered slice changed colour $changes times in $samples samples ($(($colours.Keys) -join ','))" }
 if ($notOrange -eq $samples) { Write-Host "::warning::[$Label] the hovered slice was never read as orange (window capture may be unsupported); colour stability still asserted" }
-if (Test-Path $log) { $loops = @(Select-String -Path $log -Pattern 'render-loop').Count; if ($loops) { throw "[$Label] render loop logged by the wheel" } }
+if (Test-Path $log) {
+  $loops = @(Select-String -Path $log -Pattern 'render-loop').Count; if ($loops) { throw "[$Label] render loop logged by the wheel" }
+  # renderer telemetry from this run: with the cursor resting on one slice, there must be (almost) no re-renders
+  $stats = @(Get-Content $log | Where-Object { $_ -match '"stat":"renders"' } | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.pid -in $pids })
+  $busy = @($stats | Where-Object { $_.last2s -gt 6 })
+  Write-Host "[$Label] renderer render counts per 2 s: $(($stats | ForEach-Object { $_.last2s }) -join ',')"
+  if ($busy.Count -gt 1) { throw "[$Label] the wheel kept re-rendering under a resting cursor: $(($busy | ForEach-Object { $_.last2s }) -join ',') renders per 2 s" }
+}
 if ($wins -ne 1) { throw "[$Label] expected exactly one wheel window, found $wins" }
 Write-Host "[$Label] OK: the wheel stayed visible for $Seconds s"

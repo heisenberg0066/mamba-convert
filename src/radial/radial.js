@@ -29,7 +29,7 @@ function render() {
   svg.replaceChildren(); let items = state.items; let parentMid = -Math.PI / 2, parentSpan = Math.PI * 2; const live = new Set();
   for (let level = 0; level < RINGS.length && items && items.length; level++) {
     const rk = level + ':' + path.slice(0, level).join('.'); live.add(rk);
-    const g = el('g', { class: `ring r${level + 1}` + (shownRings.has(rk) ? ' still' : '') }, svg); const [r1, r2] = RINGS[level]; const lay = layout(items, level, parentMid, parentSpan);
+    const g = el('g', { class: `ring r${level + 1}` + (shownRings.has(rk) && !state.legacyHover ? ' still' : '') }, svg); const [r1, r2] = RINGS[level]; const lay = layout(items, level, parentMid, parentSpan);
     lay.forEach(({ it, a0, a1 }, i) => {
       const on = path[level] === i; const s = el('g', { class: 'sl' + (on ? ' on' : '') + (it.disabled ? ' dis' : '') + (it.children ? '' : ' leaf'), 'data-level': level, 'data-i': i, role: 'menuitem' }, g);
       el('path', { d: sector(r1, r2, a0, a1) }, s); const mid = (a0 + a1) / 2; const rm = (r1 + r2) / 2; const narrow = (a1 - a0) * rm < 70;
@@ -56,8 +56,9 @@ function current() { let items = state.items, node = null; for (let k = 0; k < p
 let hoverT = null;
 const isCurrent = (level, i) => path[level] === i && focusLevel === level && (path.length === level + 1 || path[level + 1] == null);
 function hover(level, i) {
-  clearTimeout(hoverT); if (isCurrent(level, i)) return;
-  hoverT = setTimeout(() => { if (isCurrent(level, i)) return; path = path.slice(0, level); path[level] = i; focusLevel = level; render(); }, level === 0 ? 0 : 40);
+  // (state.legacyHover reproduces the v1.2.0 behaviour; CI uses it as a negative control for the flicker probe)
+  clearTimeout(hoverT); if (!state.legacyHover && isCurrent(level, i)) return;
+  hoverT = setTimeout(() => { if (!state.legacyHover && isCurrent(level, i)) return; path = path.slice(0, level); path[level] = i; focusLevel = level; render(); }, level === 0 ? 0 : 40);
 }
 function activate(level, i) {
   const it = nodeAt(level, i); if (!it || it.disabled || busy) return;
@@ -86,4 +87,7 @@ rapi.on('radial:show', (d) => {
   if (d.preselect) { path = d.preselect.slice(); focusLevel = Math.max(0, path.length - 1); }
   render();
 });
+// Render-rate telemetry for wheel.log: a steady wheel renders only when the selection changes.
+let lastStat = 0;
+setInterval(() => { if (!state.items.length || document.body.classList.contains('closing')) return; const n = renderCount - lastStat; lastStat = renderCount; if (n) rapi.send('radial:log', { stat: 'renders', last2s: n, total: renderCount }); }, 2000);
 window.__radial = { get state() { return state; }, get path() { return path; }, get renders() { return renderCount; }, activate, hover: (l, i) => { path = path.slice(0, l); path[l] = i; focusLevel = l; render(); } };

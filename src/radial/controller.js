@@ -91,7 +91,7 @@ module.exports = function createController(ctx) {
       // Idempotent: already showing → update in place, never hide/show.
       const merged = [...new Set([...radialFiles, ...files])]; const added = merged.length - radialFiles.length;
       wlog('show-update', { session, added, files: merged.length });
-      if (added) { radialFiles = merged; const menu = M.menuFor(merged, { readerAvailable: !!reader.findReader() }); radial.webContents.send('radial:show', { items: menu.items, kinds: menu.kinds, count: merged.length, lang: lang(), preselect, update: true }); }
+      if (added) { radialFiles = merged; const menu = M.menuFor(merged, { readerAvailable: !!reader.findReader() }); radial.webContents.send('radial:show', { items: menu.items, kinds: menu.kinds, count: merged.length, lang: lang(), preselect, legacyHover: process.env.MAMBA_WHEEL_LEGACY_HOVER === '1', update: true }); }
       return true;
     }
     if (!files.length) return false;
@@ -103,7 +103,7 @@ module.exports = function createController(ctx) {
     const pt = at || screen.getCursorScreenPoint(); const wa = displayAt(pt);
     const x = Math.round(Math.min(Math.max(pt.x - 360, wa.x - 200), wa.x + wa.width - 520)), y = Math.round(Math.min(Math.max(pt.y - 360, wa.y - 200), wa.y + wa.height - 520));
     radial.setBounds({ x, y, width: 720, height: 720 });
-    radial.webContents.send('radial:show', { items: menu.items, kinds: menu.kinds, count: files.length, lang: lang(), preselect });
+    radial.webContents.send('radial:show', { items: menu.items, kinds: menu.kinds, count: files.length, lang: lang(), preselect, legacyHover: process.env.MAMBA_WHEEL_LEGACY_HOVER === '1' });
     shownAt = Date.now();
     wlog('show', { session, files: files.length, wasVisible: !!visible, x, y, cursor: pt });
     if (!radial.isVisible()) radial.show();

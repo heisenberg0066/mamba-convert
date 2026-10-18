@@ -141,6 +141,11 @@ jobs:
           foreach ($c in @(@{ L = '1 file, cold'; F = $one; H = $false }, @{ L = '3 files, cold'; F = $three; H = $false }, @{ L = '1 file, tray helper running'; F = $one; H = $true }, @{ L = '3 files, tray helper running'; F = $three; H = $true })) {
             try { & .\test\flicker-probe.ps1 -Files $c.F -WithHelper:$c.H -Seconds 6 -Label $c.L } catch { Write-Host "::error::$($_.Exception.Message)"; $fail += $c.L }
           }
+          # negative control: the v1.2.0 hover behaviour must be caught by the same probe
+          $env:MAMBA_WHEEL_LEGACY_HOVER = '1'; $caught = $false
+          try { & .\test\flicker-probe.ps1 -Files $one -Seconds 6 -Label 'negative control (v1.2.0 hover)' } catch { $caught = $true; Write-Host "negative control caught as expected: $($_.Exception.Message)" }
+          Remove-Item Env:\MAMBA_WHEEL_LEGACY_HOVER
+          if (!$caught) { $fail += 'negative control was NOT detected (probe has no teeth)' }
           Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
           if ($fail.Count) { throw "flicker in: $($fail -join '; ')" }
 
