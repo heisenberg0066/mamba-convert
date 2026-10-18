@@ -75,7 +75,7 @@ jobs:
           Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
           $setup = Get-ChildItem dist\MambaConvert-Setup-*.exe | Select-Object -First 1
           $exe = "$env:LOCALAPPDATA\Programs\Mamba Convert\Mamba Convert.exe"
-          for ($try = 1; $try -le 2 -and !(Test-Path $exe); $try++) {
+          for ($try = 1; $try -le 4 -and !(Test-Path $exe); $try++) {
             $p = Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait -PassThru
             Write-Host "Setup exit code: $($p.ExitCode) (attempt $try)"
             for ($i = 0; $i -lt 60 -and !(Test-Path $exe); $i++) { Start-Sleep 1 }
@@ -145,7 +145,7 @@ jobs:
           Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
           Invoke-WebRequest https://github.com/heisenberg0066/mamba-reader/releases/download/v1.0.0/MambaReader-Setup-1.0.0-x64.exe -OutFile "$env:RUNNER_TEMP\reader-setup.exe"
           $rexe = "$env:LOCALAPPDATA\Programs\Mamba Reader\Mamba Reader.exe"
-          for ($try = 1; $try -le 2 -and !(Test-Path $rexe); $try++) { Start-Process "$env:RUNNER_TEMP\reader-setup.exe" -ArgumentList '/S' -Wait; for ($i = 0; $i -lt 60 -and !(Test-Path $rexe); $i++) { Start-Sleep 1 } }
+          for ($try = 1; $try -le 4 -and !(Test-Path $rexe); $try++) { Start-Process "$env:RUNNER_TEMP\reader-setup.exe" -ArgumentList '/S' -Wait; for ($i = 0; $i -lt 60 -and !(Test-Path $rexe); $i++) { Start-Sleep 1 } }
           if (!(Test-Path $rexe)) { throw 'Reader not installed' }
           $log = "$env:APPDATA\Mamba Reader\handoff.log"; Remove-Item $log -ErrorAction SilentlyContinue
           $pdf = (Resolve-Path test\fixtures\handoff-test.pdf).Path; $exe = "$env:LOCALAPPDATA\Programs\Mamba Convert\Mamba Convert.exe"
