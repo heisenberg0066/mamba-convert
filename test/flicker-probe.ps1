@@ -88,17 +88,17 @@ Start-Sleep -Milliseconds 600
 # the hovered slice is orange (#ff7a00); sample its on-screen colour too, which catches fade/redraw flicker
 function IsOrange($c) { $rr = ($c -shr 16) -band 255; $gg = ($c -shr 8) -band 255; $bb = $c -band 255; return ($rr -gt 200 -and $gg -gt 80 -and $gg -lt 160 -and $bb -lt 80) }
 $c0 = [W]::WindowPixel($h, $px - $r.L, $py - $r.T); Write-Host ("[$Label] slice pixel at ($px,$py) = #{0:x6}" -f $c0)
-$samples = 0; $hidden = 0; $transitions = 0; $prev = $true; $trace = New-Object System.Text.StringBuilder; $notOrange = 0; $colours = @{}
+$samples = 0; $hidden = 0; $transitions = 0; $prev = $true; $trace = New-Object System.Text.StringBuilder; $notOrange = 0; $colours = @{}; $changes = 0; $prevC = $null
 $sw.Restart()
 while ($sw.ElapsedMilliseconds -lt ($Seconds * 1000)) {
   $v = [W]::AnyVisible($title); $samples++
-  $c = [W]::WindowPixel($h, $px - $r.L, $py - $r.T); if (!(IsOrange $c)) { $notOrange++ }; $colours[('{0:x6}' -f $c)] = 1 + [int]$colours[('{0:x6}' -f $c)]
+  $c = [W]::WindowPixel($h, $px - $r.L, $py - $r.T); if (!(IsOrange $c)) { $notOrange++ }; if ($null -ne $prevC -and $c -ne $prevC) { $changes++ }; $prevC = $c; $colours[('{0:x6}' -f $c)] = 1 + [int]$colours[('{0:x6}' -f $c)]
   if (!$v) { $hidden++ }
   if ($v -ne $prev) { $transitions++; [void]$trace.Append("$($sw.ElapsedMilliseconds)ms:$(if ($v) {'show'} else {'hide'}) ") }
   $prev = $v; Start-Sleep -Milliseconds 50
 }
 $wins = @([W]::Find($title)).Count
-Write-Host "[$Label] $samples samples over $Seconds s: hidden=$hidden transitions=$transitions notOrange=$notOrange wheelWindows=$wins $trace"
+Write-Host "[$Label] $samples samples over $Seconds s: hidden=$hidden transitions=$transitions notOrange=$notOrange colourChanges=$changes wheelWindows=$wins $trace"
 Write-Host "[$Label] slice colours seen: $(($colours.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 8 | ForEach-Object { "#$($_.Key)x$($_.Value)" }) -join ' ')"
 $procs = @(Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue)
 Write-Host "[$Label] Mamba Convert processes still running: $($procs.Count)"
@@ -106,8 +106,9 @@ $log = Join-Path $env:APPDATA 'Mamba Convert\logs\wheel.log'
 if (Test-Path $log) { Write-Host "[$Label] --- $log (tail) ---"; Get-Content $log -Tail 40 }
 Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 1
 if ($hidden -gt 0 -or $transitions -gt 0) { throw "[$Label] FLICKER: the wheel was hidden in $hidden of $samples samples ($transitions transitions)" }
-if ($notOrange -eq $samples) { Write-Host "::warning::[$Label] the hovered slice was never read as orange; screen pixel sampling looks unusable here, so only window visibility is asserted" }
-elseif ($notOrange -gt [math]::Max(1, [int]($samples * 0.02))) { throw "[$Label] VISUAL FLICKER: the hovered slice was not drawn in $notOrange of $samples samples" }
+# A steady wheel renders the hovered slice in one colour; a re-animating wheel cycles through fade colours.
+if ($changes -gt 2) { throw "[$Label] VISUAL FLICKER: the hovered slice changed colour $changes times in $samples samples ($(($colours.Keys) -join ','))" }
+if ($notOrange -eq $samples) { Write-Host "::warning::[$Label] the hovered slice was never read as orange (window capture may be unsupported); colour stability still asserted" }
 if (Test-Path $log) { $loops = @(Select-String -Path $log -Pattern 'render-loop').Count; if ($loops) { throw "[$Label] render loop logged by the wheel" } }
 if ($wins -ne 1) { throw "[$Label] expected exactly one wheel window, found $wins" }
 Write-Host "[$Label] OK: the wheel stayed visible for $Seconds s"

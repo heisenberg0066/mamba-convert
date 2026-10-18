@@ -80,7 +80,10 @@ jobs:
             Write-Host "Setup exit code: $($p.ExitCode) (attempt $try)"
             for ($i = 0; $i -lt 60 -and !(Test-Path $exe); $i++) { Start-Sleep 1 }
           }
-          if (!(Test-Path $exe)) { throw "not installed at $exe" }
+          if (!(Test-Path $exe)) {
+            Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Id = 1000, 1001 } -MaxEvents 6 -ErrorAction SilentlyContinue | Format-List TimeCreated, Id, Message | Out-String -Width 300 | Write-Host
+            throw "not installed at $exe"
+          }
           Write-Host "Installed: $exe"
           foreach ($e in '.jpg', '.png', '.mp4', '.mp3', '.pdf', '.docx', '.epub', '.csv') {
             $k = "HKCU:\Software\Classes\SystemFileAssociations\$e\shell\MambaConvert"
