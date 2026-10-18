@@ -78,6 +78,30 @@ There are 961 input→output pairs, or 875 unique ones when aliases such as jpeg
 - 🔊 **Normalize / volume** — accepts audio/video
 - 📸 **Video thumbnail** — accepts video
 - 🧹 **Strip metadata** — accepts image/video/audio/pdf
+## Explorer wheel (v1.2)
+In File Explorer, right-click any supported file, a multi-selection or a folder and choose **Mamba Convert**. A round pie menu opens right at your mouse.
+
+| Categories | Convert → formats | Nested (Edit → Resize) | Arabic |
+|---|---|---|---|
+| ![](docs/wheel-1-inner.png) | ![](docs/wheel-2-convert.png) | ![](docs/wheel-3-nested.png) | ![](docs/wheel-5-arabic.png) |
+
+* **Inner ring**: only the categories that fit the selected files are shown. These are Convert, Compress, Edit/Studio, Flipbook, PDF tools, Audio/Video tools, Strip metadata and Open in Mamba Reader.
+* **Outer rings**: hover a category, or click it, to expand its options. Examples:
+  * Convert → JPG / PNG / WebP / PDF … (long lists continue in a **More** ring)
+  * Compress → Low / Medium / Strong
+  * Edit → Resize → 50 % / 1920 px …
+* **Keyboard**: ← → move between slices, Enter opens or runs, Backspace goes back, 1–9 pick a slice directly, Esc closes.
+* **Multi-select and folders**: Explorer starts one process per file. Mamba Convert is single-instance and merges them into one wheel. A folder expands to the supported files inside it.
+* **Background jobs**: a small toast at the bottom right shows progress, with **Show in folder** and **Open** buttons. Your files are never overwritten; new names get " (n)".
+* **Ctrl+Alt+M**: opens the wheel for the files selected in the active Explorer window. This needs the tray helper, which starts with Windows by default; you can turn it off from the tray menu or with the 🎯 Wheel button.
+* **Floating bubble**: an optional round 🐍 bubble that stays on top. Drop files on it to get the same wheel. Drag it to move it; right-click it for the menu.
+
+The installer registers everything per user. It writes `HKCU\Software\Classes\SystemFileAssociations\.<ext>\shell\MambaConvert` for each of the 72 supported extensions, plus `Directory\shell\MambaConvert`. The uninstaller removes those keys and the start-up entry.
+
+On Windows 11 the entry appears under **Show more options** (Shift+F10). A top-level Windows 11 menu entry would need a signed MSIX sparse package, so it is not included.
+
+CLI: `"Mamba Convert.exe" --radial <files…>`, `--bubble`, `--background`, `--open-in-reader <file>`.
+
 ## Install (Windows 10/11 x64)
 1. Download `MambaConvert-Setup-<ver>-x64.exe` (installer), `MambaConvert-Portable-<ver>-x64.exe` (no install), or the `.zip`, from Releases.
 2. The app is not code-signed, so Windows SmartScreen may say *"Windows protected your PC"*. Click **More info → Run anyway**.
@@ -92,7 +116,14 @@ npm ci
 npx electron-builder --win --x64      # works on Linux too, without wine (icon is embedded with resedit)
 node test/run-tests.js                 # engine tests (uses system ffmpeg on Linux)
 ```
-CI: `.github/workflows/build-windows.yml` builds on `windows-latest`, runs the engine tests and a packaged-app smoke test, and publishes a Release for `v*` tags.
+CI: `.github/workflows/build-windows.yml` runs on `windows-latest` and does the following:
+1. Runs the engine and wheel-model tests.
+2. Builds the app and runs the packaged smoke test and the wheel UI test, which produces screenshots.
+3. Installs it silently and checks the registry.
+4. Runs the exact Explorer command line for a single file, a 3-file multi-select and a folder.
+5. Installs the released Mamba Reader and checks the Convert → Reader handoff.
+6. Uninstalls it and checks that the registry was cleaned.
+7. Publishes a Release for `v*` tags.
 
 ## Known gaps
 - DOCX → PDF uses mammoth → HTML → Chromium PDF. Basic formatting carries over, but it is not a pixel-perfect Word layout. There is no Office/LibreOffice.
@@ -100,5 +131,6 @@ CI: `.github/workflows/build-windows.yml` builds on `windows-latest`, runs the e
 - PDF *lossless* compression only re-optimizes streams. *Strong* compression rasterizes pages to images, so text is no longer selectable.
 - No RAW camera formats, PSD, or animated-image editing in Image Studio (only the first frame is edited).
 - Unsigned build, so SmartScreen shows a warning.
+- Windows 11: the wheel is under "Show more options". Ctrl+Alt+M works for File Explorer windows but not for files selected on the desktop itself. With several Explorer tabs, the first tab that has a selection wins.
 
 Licenses: FFmpeg (GPLv3 build from gyan.dev), MuPDF (AGPL), libvips (LGPL), pdf-lib (MIT), Electron (MIT). Free for personal use.

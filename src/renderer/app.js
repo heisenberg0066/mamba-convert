@@ -360,6 +360,21 @@ $('#qOpen').addEventListener('click', () => { const last = Q.jobs.find((j) => j.
 let readerOK = false;
 async function refreshReader() { const was = readerOK; readerOK = await api.readerStatus().catch(() => false); if (was !== readerOK) renderQueue(); }
 window.addEventListener('focus', refreshReader);
+// ---------------- Explorer wheel / helper settings ----------------
+$('#wheelBtn').addEventListener('click', async (e) => {
+  e.stopPropagation(); const p = $('#wheelPop'); p.classList.toggle('hidden'); if (p.classList.contains('hidden')) return;
+  const h = await api.helperSettings(); $('#wpBubble').checked = h.bubble; $('#wpHotkey').checked = h.hotkey; $('#wpLogin').checked = h.startAtLogin;
+  $$('#wheelPop input').forEach((i) => (i.disabled = !h.helper && i.id !== 'wpBubble'));
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('#wheelPop') && e.target.id !== 'wheelBtn') $('#wheelPop').classList.add('hidden'); });
+$('#wpBubble').addEventListener('change', (e) => api.helperSet({ bubble: e.target.checked }));
+$('#wpHotkey').addEventListener('change', (e) => api.helperSet({ hotkey: e.target.checked }));
+$('#wpLogin').addEventListener('change', (e) => api.helperSet({ startAtLogin: e.target.checked }));
+api.onOpenFiles(async ({ paths, tab }) => {
+  if (tab === 'image') { await Img.add(paths); showTab('image'); }
+  else if (tab === 'video') { await Vid.add(paths); showTab('video'); }
+  else { uniqAdd(files, await describe(paths)); renderConvert(); showTab('convert'); }
+});
 // ---------------- boot ----------------
 (async () => {
   S = await api.getSettings(); catalog = await api.catalog();

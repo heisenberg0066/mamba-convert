@@ -1,0 +1,10 @@
+'use strict';
+const b = document.getElementById('b'); let drag = null, moved = false;
+rapi.on('bubble:lang', (l) => { b.title = rt(l, 'bubbleTip'); });
+b.addEventListener('pointerdown', (e) => { if (e.button !== 0) return; drag = { x: e.screenX, y: e.screenY }; moved = false; b.setPointerCapture(e.pointerId); });
+b.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.screenX - drag.x, dy = e.screenY - drag.y; if (!moved && Math.hypot(dx, dy) < 4) return; moved = true; rapi.send('bubble:move', { dx, dy }); drag = { x: e.screenX, y: e.screenY }; });
+b.addEventListener('pointerup', () => { if (drag && !moved) rapi.send('bubble:click'); if (moved) rapi.send('bubble:moved'); drag = null; });
+b.addEventListener('contextmenu', (e) => { e.preventDefault(); rapi.send('bubble:menu'); });
+['dragenter', 'dragover'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); b.classList.add('over'); }));
+document.addEventListener('dragleave', () => b.classList.remove('over'));
+document.addEventListener('drop', (e) => { e.preventDefault(); b.classList.remove('over'); const paths = [...e.dataTransfer.files].map((f) => rapi.pathFor(f)).filter(Boolean); if (paths.length) rapi.send('bubble:drop', paths); });

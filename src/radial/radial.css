@@ -1,0 +1,19 @@
+html,body{margin:0;background:transparent;overflow:hidden;font-family:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;user-select:none}
+.radial-body{width:720px;height:720px}
+#wheel{position:absolute;left:0;top:0;overflow:visible}
+.ring{transform-origin:360px 360px;animation:pop .22s cubic-bezier(.2,.9,.3,1.25) both}
+@keyframes pop{from{transform:scale(.55) rotate(-12deg);opacity:0}to{transform:none;opacity:1}}
+.sl path{fill:rgba(255,255,255,.96);stroke:rgba(0,0,0,.08);stroke-width:1;transition:fill .12s,transform .12s;filter:drop-shadow(0 4px 10px rgba(0,0,0,.22))}
+.r2 .sl path{fill:rgba(255,248,240,.97)}.r3 .sl path{fill:rgba(255,242,228,.97)}
+.sl{cursor:pointer}.sl:hover path,.sl.on path{fill:#ff7a00}.sl.on text,.sl:hover text{fill:#fff}
+.sl.dis{cursor:not-allowed}.sl.dis path{fill:rgba(235,235,235,.95)}.sl.dis text{fill:#999}
+.sl text{fill:#1f2328;font-size:11.5px;font-weight:600;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.sl text.ic{font-size:21px;font-weight:400}.r2 .sl text.ic,.r3 .sl text.ic{font-size:17px}
+.sl .kb{font-size:9.5px;fill:#999;font-weight:500}
+.sl.leaf.on path{fill:#e85d00}
+.ctr circle{fill:#1f2328;filter:drop-shadow(0 6px 16px rgba(0,0,0,.35));cursor:pointer;transition:fill .15s}.ctr:hover circle{fill:#ff7a00}
+.ctr text{fill:#fff;text-anchor:middle;dominant-baseline:central;pointer-events:none}.ctr .t1{font-size:13px;font-weight:700}.ctr .t2{font-size:10.5px;opacity:.8}.ctr .logo{font-size:22px}
+.ring.leaving{animation:out .14s ease-in both}@keyframes out{to{transform:scale(.6);opacity:0}}
+body.closing #wheel{animation:out .14s ease-in both;transform-origin:360px 360px}
+#hint{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:11px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);opacity:.9}
+[dir=rtl] #hint{direction:rtl}

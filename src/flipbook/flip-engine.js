@@ -1,7 +1,9 @@
-/*! Mamba flip engine v1 — shared by Mamba Convert (flipbook export) and Mamba Reader.
+/*! Mamba flip engine v2 (v1-compatible) — shared by Mamba Convert (flipbook export) and Mamba Reader.
  *  Zero dependencies, works from file:// (no fetch/XHR).  Usage:
  *    const fb = new MambaFlip(document.body, { title, pages:[{src,w,h}], thumbs:[src], rtl:false });
  *  API: fb.next() fb.prev() fb.go(pageIndex) fb.zoomBy(f) fb.state()
+ *  v2 options: embedded (fill parent instead of window), toolbar:false, thumbs:false,
+ *    renderPage(index, el, w, h) to draw custom page content (overlays), onChange(state), setNavLocked(bool), relayout()
  */
 (function (global) {
   'use strict';
@@ -15,12 +17,12 @@
       this.zoom = 1; this.panX = 0; this.panY = 0; this.anim = null;
       const aspect = this.pages.length ? this.pages[0].w / this.pages[0].h : 0.707; this.aspect = aspect;
       this.build(mount); this.layout(); this.render();
-      addEventListener('resize', () => { this.layout(); this.render(); });
+      this._onResize = () => this.relayout(); addEventListener('resize', this._onResize);
       if (location.hash && /^#p\d+$/.test(location.hash)) this.go(parseInt(location.hash.slice(2), 10) - 1, true);
     }
     // ---------- structure ----------
     build(mount) {
-      const r = this.root = h('div', 'mf-root'); r.dir = this.o.rtl ? 'rtl' : 'ltr';
+      const r = this.root = h('div', 'mf-root' + (this.o.embedded ? ' mf-embedded' : '') + (this.o.toolbar === false ? ' mf-notoolbar' : '') + (this.o.thumbs === false ? ' mf-nothumbs' : '')); r.dir = this.o.rtl ? 'rtl' : 'ltr';
       const bar = h('div', 'mf-bar');
       const btn = (txt, title, fn) => { const b = h('button', '', { title, type: 'button' }); b.textContent = txt; b.addEventListener('click', fn); bar.appendChild(b); return b; };
       this.bThumbs = btn('☰', 'Thumbnails (T)', () => this.toggleThumbs()); this.bThumbs.classList.add('on');
@@ -46,6 +48,9 @@
       mount.appendChild(r);
       this.bindInput();
     }
+    relayout() { if (!this.root.isConnected) return; this.layout(); this.render(); }
+    setNavLocked(b) { this.locked = !!b; this.root.classList.toggle('mf-locked', this.locked); }
+    destroy() { removeEventListener('resize', this._onResize); removeEventListener('keydown', this._onKey); this.root.remove(); }
     isSingle() { return this.forceSingle != null ? this.forceSingle : this.stage.clientWidth / this.stage.clientHeight < this.aspect * 1.45; }
     layout() {
       const single = this.isSingle(); this.single = single;
@@ -63,7 +68,7 @@
     spreadOf(i) { if (this.single) return [null, i]; if (!this.o.cover) { const l = i - (i % 2); return [l, l + 1 < this.n ? l + 1 : null]; } if (i <= 0) return [null, 0]; const l = i % 2 ? i : i - 1; return [l, l + 1 < this.n ? l + 1 : null]; }
     stepFwd(i) { if (this.single) return i + 1; const [l, r] = this.spreadOf(i); return (r != null ? r : l) + 1; }
     stepBack(i) { if (this.single) return i - 1; const [l] = this.spreadOf(i); return l == null ? -1 : this.spreadOf(l - 1)[0] ?? this.spreadOf(l - 1)[1]; }
-    pageEl(i) { const d = h('div', 'mf-pg'); if (i != null && i >= 0 && i < this.n) { const im = h('img', '', { alt: 'Page ' + (i + 1), draggable: 'false' }); im.src = this.pages[i].src; d.appendChild(im); } return d; }
+    pageEl(i) { const d = h('div', 'mf-pg'); if (i != null && i >= 0 && i < this.n && this.o.renderPage) { this.o.renderPage(i, d, this.pw, this.ph); return d; } if (i != null && i >= 0 && i < this.n) { const im = h('img', '', { alt: 'Page ' + (i + 1), draggable: 'false' }); im.src = this.pages[i].src; d.appendChild(im); } return d; }
     fill(slot, i) { slot.replaceChildren(this.pageEl(i)); slot.classList.toggle('mf-empty', i == null || i < 0 || i >= this.n); }
     render() {
       const [l, r] = this.spreadOf(this.cur); this.fill(this.slotL, l); this.fill(this.slotR, r);
@@ -72,8 +77,9 @@
       [...this.thumbsEl.children].forEach((t, i) => t.classList.toggle('on', vis.includes(i)));
       const on = this.thumbsEl.children[vis[0]]; if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
       // preload neighbours
-      [this.stepFwd(this.cur), this.stepFwd(this.cur) + 1, this.stepBack(this.cur)].forEach((k) => { if (k >= 0 && k < this.n) { const im = new Image(); im.src = this.pages[k].src; } });
-      try { history.replaceState(null, '', '#p' + (vis[0] + 1)); } catch (_) { /* file:// in some browsers */ }
+      if (!this.o.renderPage) [this.stepFwd(this.cur), this.stepFwd(this.cur) + 1, this.stepBack(this.cur)].forEach((k) => { if (k >= 0 && k < this.n) { const im = new Image(); im.src = this.pages[k].src; } });
+      if (!this.o.embedded) { try { history.replaceState(null, '', '#p' + (vis[0] + 1)); } catch (_) { /* file:// in some browsers */ } }
+      if (this.o.onChange) this.o.onChange(this.state());
     }
     // ---------- flipping ----------
     canNext() { return this.stepFwd(this.cur) < this.n; }
@@ -141,25 +147,26 @@
     bindInput() {
       const fwd = () => this.next(), back = () => this.prev();
       this.hotNext.addEventListener('click', fwd); this.hotPrev.addEventListener('click', back);
-      addEventListener('keydown', (e) => {
-        if (e.target === this.inp) return; const k = e.key; const rtl = this.o.rtl;
+      this._onKey = (e) => {
+        if (e.target === this.inp || this.o.keyboard === false || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable) return; const k = e.key; const rtl = this.o.rtl;
         if (k === 'ArrowRight' || k === 'PageDown' || k === ' ') { e.preventDefault(); (rtl && k === 'ArrowRight') ? back() : fwd(); }
         else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); (rtl && k === 'ArrowLeft') ? fwd() : back(); }
         else if (k === 'Home') this.go(0); else if (k === 'End') this.go(this.n - 1);
         else if (k === '+' || k === '=') this.zoomBy(1.25); else if (k === '-') this.zoomBy(0.8); else if (k === '0') this.setZoom(1);
         else if (k === 't' || k === 'T') this.toggleThumbs(); else if (k === 'f' || k === 'F') { if (document.fullscreenElement) document.exitFullscreen(); else if (this.root.requestFullscreen) this.root.requestFullscreen(); }
         else if (k === 's' || k === 'S') { this.forceSingle = !this.isSingle(); this.layout(); this.render(); }
-      });
+      };
+      addEventListener('keydown', this._onKey);
       this.stage.addEventListener('wheel', (e) => {
         const r = this.stage.getBoundingClientRect();
         if (e.ctrlKey || this.zoom > 1) { e.preventDefault(); if (e.ctrlKey) this.zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top); else { this.panX -= e.deltaX; this.panY -= e.deltaY; this.applyZoom(); } }
-        else if (Math.abs(e.deltaY) > 30 && !this.anim) { e.deltaY > 0 ? fwd() : back(); }
+        else if (Math.abs(e.deltaY) > 30 && !this.anim && !this.locked) { e.deltaY > 0 ? fwd() : back(); }
       }, { passive: false });
-      this.stage.addEventListener('dblclick', (e) => { const r = this.stage.getBoundingClientRect(); if (this.zoom > 1) this.setZoom(1); else this.setZoom(2.2, e.clientX - r.left, e.clientY - r.top); });
+      this.stage.addEventListener('dblclick', (e) => { if (this.locked) return; const r = this.stage.getBoundingClientRect(); if (this.zoom > 1) this.setZoom(1); else this.setZoom(2.2, e.clientX - r.left, e.clientY - r.top); });
       // drag: pan when zoomed, otherwise drag a page corner to turn it
       let drag = null;
       this.stage.addEventListener('pointerdown', (e) => {
-        if (e.button !== 0) return;
+        if (e.button !== 0 || this.locked || (this.o.noDrag && e.target.closest && e.target.closest(this.o.noDrag))) return;
         if (this.zoom > 1) { drag = { pan: true, x: e.clientX, y: e.clientY, px: this.panX, py: this.panY }; this.stage.setPointerCapture(e.pointerId); return; }
         const b = this.book.getBoundingClientRect(); let x = (e.clientX - b.left) / b.width; if (this.o.rtl) x = 1 - x;
         if (x > 0.8 && this.canNext()) drag = { dir: 1 }; else if (x < 0.2 && this.canPrev()) drag = { dir: -1 }; else return;

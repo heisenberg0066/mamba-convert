@@ -1,6 +1,7 @@
 'use strict';
 window.I18N = {
   en: {
+    wheelBtn: '🎯 Wheel', wheelTitle: 'Explorer wheel', wheelHelp: 'Right-click any file (or a selection) in File Explorer → “Mamba Convert” to open the radial menu at your mouse. Jobs run in the background with a small progress toast.', wheelBubble: 'Floating drop bubble on the desktop', wheelHotkey: 'Ctrl+Alt+M opens the wheel for the files selected in Explorer', wheelLogin: 'Start with Windows (tray, needed for the hotkey)', wheelWin11: 'Windows 11: the entry is under “Show more options” (Shift+F10).',
     appName: 'Mamba Convert', tagline: '100% offline · nothing leaves this PC',
     tabConvert: 'Convert', tabImage: 'Image Studio', tabVideo: 'Video Studio', tabTools: 'Tools',
     output: 'Save to', outSame: 'Next to original', outFolder: 'Chosen folder…', change: 'Change', openFolder: 'Open folder',
@@ -44,6 +45,7 @@ window.I18N = {
     'tool.make-flipbook': 'Make flipbook', 'p.pageWidth': 'Page width px', 'p.rtl': 'Right-to-left book (Arabic)', 'p.title': 'Title (optional)', 'o.single': 'Single .html file', 'o.folder': 'Folder with index.html', addedN: 'Added {n} job(s) to the queue', removed: 'Remove',
   },
   ar: {
+    wheelBtn: '🎯 العجلة', wheelTitle: 'عجلة المستكشف', wheelHelp: 'انقر بزر الفأرة الأيمن على أي ملف (أو مجموعة) في مستكشف الملفات ← «Mamba Convert» لفتح القائمة الدائرية عند المؤشر. تعمل المهام في الخلفية مع إشعار صغير للتقدم.', wheelBubble: 'فقاعة إفلات عائمة على سطح المكتب', wheelHotkey: 'Ctrl+Alt+M يفتح العجلة للملفات المحددة في المستكشف', wheelLogin: 'التشغيل مع Windows (في شريط المهام، لازم للاختصار)', wheelWin11: 'Windows 11: الخيار موجود تحت «إظهار خيارات إضافية» (Shift+F10).',
     appName: 'مامبا كونفرت', tagline: 'يعمل بالكامل دون إنترنت · لا شيء يغادر جهازك',
     tabConvert: 'تحويل', tabImage: 'استوديو الصور', tabVideo: 'استوديو الفيديو', tabTools: 'الأدوات',
     output: 'الحفظ في', outSame: 'بجانب الملف الأصلي', outFolder: 'مجلد مختار…', change: 'تغيير', openFolder: 'فتح المجلد',

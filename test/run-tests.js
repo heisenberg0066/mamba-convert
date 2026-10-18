@@ -8,7 +8,7 @@ const OUT = path.join(W, 'out'); fs.mkdirSync(OUT);
 const results = [];
 async function check(name, fn) {
   const t = Date.now();
-  try { const r = await fn(); const files = (Array.isArray(r) ? r : [r]).filter(Boolean);
+  try { const r = await fn(); if (typeof r === 'string' && !r.includes(path.sep) && !fs.existsSync(r)) { results.push(['PASS', name, r.slice(0, 120), Date.now() - t]); return; } const files = (Array.isArray(r) ? r : [r]).filter(Boolean);
     const info = files.map((f) => `${path.basename(f)} (${fs.statSync(f).size} B)`).join(', ');
     files.forEach((f) => { if (!fs.statSync(f).size) throw new Error('empty output ' + f); });
     results.push(['PASS', name, info, Date.now() - t]); }
@@ -123,6 +123,19 @@ const o = { outputDir: OUT };
   for (const [id, files, op] of T) await check(`tool ${id} ${JSON.stringify(op)}`, () => tool(id, files, op));
   await check('strip-metadata removed EXIF', async () => { const c = fs.readdirSync(OUT).find((f) => f.startsWith('exif-clean')); const m = await sharp(path.join(OUT, c)).metadata(); if (m.exif) throw new Error('exif still present'); return path.join(OUT, c); });
   await check('rotate-video dims', async () => { const f = fs.readdirSync(OUT).find((x) => x.startsWith('sample-rotated') && x.endsWith('.mp4')); const p = await E.media.probe(path.join(OUT, f)); if (p.width !== 360 || p.height !== 640) throw new Error(`${p.width}x${p.height}`); return path.join(OUT, f); });
+
+  // ---- radial wheel model (Explorer integration)
+  const RM = require('../src/radial/menu');
+  const ids = (f) => RM.menuFor(f).items.map((i) => i.id);
+  await check('wheel: image categories', async () => { const x = ids(['a.jpg']); for (const k of ['convert', 'compress', 'edit', 'flipbook', 'pdf', 'strip', 'reader']) if (!x.includes(k)) throw new Error(x); return x.join(','); });
+  await check('wheel: video categories + nested More ring', async () => { const m = RM.menuFor(['v.mp4']); const conv = RM.find(m.items, 'convert'); if (conv.children.length !== RM.MAX_RING || !RM.find(m.items, 'convert:more').children.length) throw new Error('no more ring'); if (!ids(['v.mp4']).includes('av')) throw new Error('no av'); return 'ok'; });
+  await check('wheel: mixed selection only offers common actions', async () => { const x = ids(['a.jpg', 'v.mp4']); if (x.includes('edit') || x.includes('pdf') || !x.includes('compress')) throw new Error(x); return x.join(','); });
+  await check('wheel: merge only for multi-select', async () => { if (RM.find(RM.menuFor(['a.pdf']).items, 'pdf:merge')) throw new Error('merge on 1'); if (!RM.find(RM.menuFor(['a.pdf', 'b.pdf']).items, 'pdf:merge')) throw new Error('no merge'); return 'ok'; });
+  await check('wheel: every ring ≤ 8 slices and every leaf has an action', async () => { const walk = (items) => { if (items.length > RM.MAX_RING + 1) throw new Error('ring too big'); for (const i of items) { if (i.children) walk(i.children); else if (!i.action) throw new Error('leaf without action ' + i.id); } }; for (const f of [['a.jpg'], ['v.mp4'], ['s.mp3'], ['a.pdf', 'b.pdf'], ['d.docx'], ['x.csv'], ['b.epub']]) walk(RM.menuFor(f).items); return 'ok'; });
+  await check('wheel: unsupported files ignored', async () => { if (RM.menuFor(['x.exe', 'y.dll']).items.length) throw new Error('items'); return 'ok'; });
+  await check('wheel: compress resolves per file kind', async () => { const j = RM.resolveJobs({ type: 'compress', level: 'strong' }, ['a.jpg', 'v.mp4', 's.mp3', 'd.pdf']); const tools = j.map((x) => x.tool).join(','); if (tools !== 'compress-image,compress-video,compress-audio,compress-pdf') throw new Error(tools); return tools; });
+  await check('wheel: real job from the menu (png → webp via wheel)', async () => { const node = RM.find(RM.menuFor([png]).items, 'convert:webp'); const [job] = RM.resolveJobs(node.action, [png]); const { label, ...jj } = job; return E.runJob({ ...jj, outputDir: OUT }); });
+  await check('installer.nsh covers every input extension', async () => { const nsh = fs.readFileSync(path.join(__dirname, '..', 'build', 'installer.nsh'), 'utf8'); const F = E.formats; for (const e of [...F.IMAGE_IN, ...F.VIDEO_IN, ...F.AUDIO_IN, ...F.PDF_IN, ...F.EBOOK_IN, ...F.DOC_IN, ...F.DATA_IN]) { if (!nsh.includes(`\\.${e}\\shell\\MambaConvert\\command`)) throw new Error('missing ' + e); if (!nsh.includes(`DeleteRegKey HKCU "Software\\Classes\\SystemFileAssociations\\.${e}\\shell\\MambaConvert"`)) throw new Error('no uninstall for ' + e); } return 'ok'; });
 
   const pass = results.filter((r) => r[0] === 'PASS').length;
   for (const r of results) console.log(`${r[0]}  ${r[1]}  [${r[3]} ms]  ${r[2]}`);

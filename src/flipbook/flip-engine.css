@@ -29,3 +29,5 @@
 .mf-zoomed .mf-hot{display:none}.mf-zoomed .mf-stage{cursor:grab}
 .mf-help{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:12px;opacity:.55;pointer-events:none}
 @media (max-width:700px){.mf-thumbs{display:none}.mf-bar .mf-title{display:none}}
+.mf-root.mf-embedded{position:absolute}.mf-notoolbar .mf-bar{display:none}.mf-nothumbs .mf-thumbs{display:none}
+.mf-locked .mf-hot{display:none}.mf-locked .mf-help{display:none}

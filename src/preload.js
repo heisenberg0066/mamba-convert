@@ -10,4 +10,6 @@ contextBridge.exposeInMainWorld('api', {
   imagePreview: inv('image-preview'), imageInfo: inv('image-info'), probe: inv('probe'), videoFrame: inv('video-frame'), pdfPages: inv('pdf-pages'),
   enqueue: inv('enqueue'), cancel: inv('cancel'), retry: inv('retry'), showItem: inv('show-item'), openPath: inv('open-path'), openOutputFolder: inv('open-output-folder'), readerStatus: inv('reader-status'), openInReader: inv('open-in-reader'),
   onJob: (cb) => ipcRenderer.on('job-update', (_e, d) => cb(d)),
+  onOpenFiles: (cb) => ipcRenderer.on('open-files', (_e, d) => cb(d)),
+  helperSettings: inv('helper-settings'), helperSet: inv('helper-set'),
 });

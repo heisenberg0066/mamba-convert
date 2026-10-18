@@ -20,6 +20,7 @@
       <select id="outMode"><option value="same" data-i18n="outSame"></option><option value="folder" data-i18n="outFolder"></option></select>
     </label>
     <button id="outPick" class="ghost small" title=""></button>
+    <button id="wheelBtn" class="ghost small" data-i18n="wheelBtn"></button>
     <div class="lang"><button data-lang="en">EN</button><button data-lang="ar">عربي</button></div>
   </div>
 </header>
@@ -183,6 +184,14 @@
     <button id="qOpen" class="ghost small" data-i18n="openFolder"></button><button id="qClear" class="ghost small" data-i18n="clearDone"></button></div>
   <div id="qList" class="qlist"><div class="empty" data-i18n="emptyQueue"></div></div>
 </footer>
+<div id="wheelPop" class="wheelpop hidden">
+  <b data-i18n="wheelTitle"></b>
+  <p class="muted small" data-i18n="wheelHelp"></p>
+  <label class="chk"><input type="checkbox" id="wpBubble"> <span data-i18n="wheelBubble"></span></label>
+  <label class="chk"><input type="checkbox" id="wpHotkey"> <span data-i18n="wheelHotkey"></span></label>
+  <label class="chk"><input type="checkbox" id="wpLogin"> <span data-i18n="wheelLogin"></span></label>
+  <p class="muted small" data-i18n="wheelWin11"></p>
+</div>
 <div id="toast" class="toast hidden"></div>
 <script src="i18n.js"></script>
 <script src="app.js"></script>

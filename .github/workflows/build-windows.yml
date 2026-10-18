@@ -12,6 +12,9 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 75
+    env:
+      CI: 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -44,7 +47,9 @@ jobs:
         run: node test/run-tests.js
 
       - name: Build NSIS installer, portable exe and zip
-        run: npx electron-builder --win --x64 --publish never
+        run: |
+          node build/gen-shell-nsh.js
+          npx electron-builder --win --x64 --publish never
 
       - name: Smoke-test the packaged app
         shell: pwsh
@@ -54,6 +59,128 @@ jobs:
           $p = Start-Process -FilePath "dist/win-unpacked/Mamba Convert.exe" -PassThru -Wait -NoNewWindow
           Get-Content "$env:MAMBA_SMOKE/mamba-selftest.txt"
           if ($p.ExitCode -ne 0) { throw "self-test failed ($($p.ExitCode))" }
+
+      - name: Radial wheel UI test on the packaged app (screenshots)
+        shell: pwsh
+        run: |
+          $env:MAMBA_NO_LOCK = '1'; $env:MAMBA_NO_TRAY = '1'; $env:MAMBA_RADIAL_TEST = '1'
+          $env:MAMBA_RADIAL_SCRIPT = "$PWD\test\radial-test.js"; $env:MAMBA_RADIAL_SHOTS = "$PWD\shots"; $env:MAMBA_RADIAL_OUT = "$env:RUNNER_TEMP\radial.txt"
+          $p = Start-Process -FilePath "dist\win-unpacked\Mamba Convert.exe" -PassThru -Wait
+          Get-Content $env:MAMBA_RADIAL_OUT
+          if ($p.ExitCode -ne 0) { throw "radial test failed ($($p.ExitCode))" }
+
+      - name: Install silently and verify the Explorer context-menu registration
+        shell: pwsh
+        run: |
+          Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
+          $setup = Get-ChildItem dist\MambaConvert-Setup-*.exe | Select-Object -First 1
+          $exe = "$env:LOCALAPPDATA\Programs\Mamba Convert\Mamba Convert.exe"
+          for ($try = 1; $try -le 2 -and !(Test-Path $exe); $try++) {
+            $p = Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait -PassThru
+            Write-Host "Setup exit code: $($p.ExitCode) (attempt $try)"
+            for ($i = 0; $i -lt 60 -and !(Test-Path $exe); $i++) { Start-Sleep 1 }
+          }
+          if (!(Test-Path $exe)) { throw "not installed at $exe" }
+          Write-Host "Installed: $exe"
+          foreach ($e in '.jpg', '.png', '.mp4', '.mp3', '.pdf', '.docx', '.epub', '.csv') {
+            $k = "HKCU:\Software\Classes\SystemFileAssociations\$e\shell\MambaConvert"
+            $verb = (Get-ItemProperty $k).MUIVerb; $cmd = (Get-ItemProperty "$k\command").'(default)'; $msm = (Get-ItemProperty $k).MultiSelectModel
+            Write-Host "$e  verb='$verb' model=$msm  command=$cmd"
+            if ($verb -ne 'Mamba Convert' -or $cmd -notlike '*Mamba Convert.exe" --radial "%1"') { throw "context menu missing for $e" }
+          }
+          $d = (Get-ItemProperty 'HKCU:\Software\Classes\Directory\shell\MambaConvert\command').'(default)'; Write-Host "Folder: $d"
+          if ($d -notlike '*--radial*') { throw 'folder entry missing' }
+
+      - name: Explorer invocation end to end (single file, multi-select, folder)
+        shell: pwsh
+        run: |
+          $ff = "vendor\ffmpeg-win\ffmpeg.exe"; $t = "$env:RUNNER_TEMP\explorer"; New-Item -ItemType Directory -Force $t | Out-Null
+          & $ff -hide_banner -loglevel error -f lavfi -i color=c=orange:s=320x200 -frames:v 1 "$t\one.jpg"
+          & $ff -hide_banner -loglevel error -f lavfi -i color=c=blue:s=320x200 -frames:v 1 "$t\two.jpg"
+          & $ff -hide_banner -loglevel error -f lavfi -i color=c=green:s=320x200 -frames:v 1 "$t\three.jpg"
+          New-Item -ItemType Directory -Force shots | Out-Null
+          # the exact command line Explorer runs, read back from the registry
+          $cmd = (Get-ItemProperty 'HKCU:\Software\Classes\SystemFileAssociations\.jpg\shell\MambaConvert\command').'(default)'
+          if ($cmd -notmatch '^"([^"]+)"\s+(.*)$') { throw "bad command $cmd" }
+          $exe = $Matches[1]; $tmpl = $Matches[2]
+          function Invoke-Verb($file) { Start-Process -FilePath $exe -ArgumentList ($tmpl.Replace('%1', $file)) -PassThru }
+          # 1) single file → Convert → PNG
+          $env:MAMBA_RADIAL_AUTOPICK = 'convert:png'; $env:MAMBA_RADIAL_OUT = "$t\single.json"; $env:MAMBA_RADIAL_SHOT = "$PWD\shots\explorer-single.png"
+          $p = Invoke-Verb "$t\one.jpg"; $p.WaitForExit(120000) | Out-Null
+          Get-Content "$t\single.json"; $r = Get-Content "$t\single.json" | ConvertFrom-Json
+          if ($r.count -ne 1 -or $r.jobs[0].status -ne 'done' -or !(Test-Path $r.jobs[0].outputs[0])) { throw 'single-file wheel job failed' }
+          # 2) multi-select: Explorer starts one process per file; single-instance + collector merges them into one wheel
+          $env:MAMBA_RADIAL_COLLECT_MS = '1500'; $env:MAMBA_RADIAL_AUTOPICK = 'compress:medium'; $env:MAMBA_RADIAL_OUT = "$t\multi.json"; $env:MAMBA_RADIAL_SHOT = "$PWD\shots\explorer-multi.png"
+          $p1 = Invoke-Verb "$t\one.jpg"; Start-Sleep -Milliseconds 120; $p2 = Invoke-Verb "$t\two.jpg"; $p3 = Invoke-Verb "$t\three.jpg"
+          for ($i = 0; $i -lt 240 -and !(Test-Path "$t\multi.json"); $i++) { Start-Sleep -Milliseconds 500 }
+          foreach ($pp in $p1, $p2, $p3) { $pp.WaitForExit(30000) | Out-Null }; Start-Sleep 1
+          Get-Content "$t\multi.json"; $r = Get-Content "$t\multi.json" | ConvertFrom-Json
+          if ($r.count -ne 3 -or @($r.jobs | Where-Object status -eq 'done').Count -ne 3) { throw "multi-select wheel failed (count=$($r.count))" }
+          if (!$p2.HasExited -or !$p3.HasExited) { throw 'secondary instances did not exit' }
+          # 3) folder → flipbook from all images inside
+          $dcmd = (Get-ItemProperty 'HKCU:\Software\Classes\Directory\shell\MambaConvert\command').'(default)'; $null = $dcmd -match '^"([^"]+)"\s+(.*)$'
+          $env:MAMBA_RADIAL_AUTOPICK = 'flipbook:single'; $env:MAMBA_RADIAL_OUT = "$t\folder.json"; Remove-Item Env:\MAMBA_RADIAL_SHOT
+          New-Item -ItemType Directory -Force "$t\album" | Out-Null; Copy-Item "$t\one.jpg", "$t\two.jpg", "$t\three.jpg" "$t\album\"
+          $p = Start-Process -FilePath $Matches[1] -ArgumentList ($Matches[2].Replace('%1', "$t\album")) -PassThru; $p.WaitForExit(120000) | Out-Null
+          Get-Content "$t\folder.json"; $r = Get-Content "$t\folder.json" | ConvertFrom-Json
+          if ($r.count -ne 3 -or $r.jobs[0].status -ne 'done') { throw 'folder wheel failed' }
+          $run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).MambaConvert
+          Write-Host "Start-with-Windows entry: $run"
+
+      - name: Global hotkey on an Explorer selection (best effort)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $t = "$env:RUNNER_TEMP\explorer"; $exe = "$env:LOCALAPPDATA\Programs\Mamba Convert\Mamba Convert.exe"
+          $env:MAMBA_RADIAL_AUTOPICK = 'convert:webp'; $env:MAMBA_RADIAL_OUT = "$t\hotkey.json"; $env:MAMBA_RADIAL_SHOT = "$PWD\shots\hotkey.png"
+          $p = Start-Process -FilePath $exe -ArgumentList '--background' -PassThru; Start-Sleep 6
+          Start-Process explorer.exe -ArgumentList "/select,`"$t\two.jpg`""; Start-Sleep 5
+          $ws = New-Object -ComObject WScript.Shell; $null = $ws.AppActivate('explorer'); Start-Sleep 1; $ws.SendKeys('^%m')
+          $p.WaitForExit(40000) | Out-Null
+          if (Test-Path "$t\hotkey.json") { Get-Content "$t\hotkey.json" } else { Write-Host 'hotkey: no result (runner desktop may not deliver global hotkeys)'; Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force; exit 1 }
+
+      - name: Convert → Mamba Reader handoff with the released Reader
+        shell: pwsh
+        run: |
+          Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
+          Invoke-WebRequest https://github.com/heisenberg0066/mamba-reader/releases/download/v1.0.0/MambaReader-Setup-1.0.0-x64.exe -OutFile "$env:RUNNER_TEMP\reader-setup.exe"
+          $rexe = "$env:LOCALAPPDATA\Programs\Mamba Reader\Mamba Reader.exe"
+          for ($try = 1; $try -le 2 -and !(Test-Path $rexe); $try++) { Start-Process "$env:RUNNER_TEMP\reader-setup.exe" -ArgumentList '/S' -Wait; for ($i = 0; $i -lt 60 -and !(Test-Path $rexe); $i++) { Start-Sleep 1 } }
+          if (!(Test-Path $rexe)) { throw 'Reader not installed' }
+          $log = "$env:APPDATA\Mamba Reader\handoff.log"; Remove-Item $log -ErrorAction SilentlyContinue
+          $pdf = (Resolve-Path test\fixtures\handoff-test.pdf).Path; $exe = "$env:LOCALAPPDATA\Programs\Mamba Convert\Mamba Convert.exe"
+          $env:MAMBA_HANDOFF_OUT = "$env:RUNNER_TEMP\handoff.json"
+          $p = Start-Process -FilePath $exe -ArgumentList '--open-in-reader', "`"$pdf`"" -PassThru -Wait
+          Get-Content $env:MAMBA_HANDOFF_OUT
+          $ok = $false; for ($i = 0; $i -lt 60; $i++) { Start-Sleep 1; if ((Test-Path $log) -and (Select-String -Path $log -Pattern '"event":"opened"' -Quiet)) { $ok = $true; break } }
+          if (Test-Path $log) { Get-Content $log }
+          if (!$ok) { throw 'Convert → Reader handoff failed' }
+          # and through the wheel's "Mamba Reader" slice
+          $env:MAMBA_RADIAL_AUTOPICK = 'reader'; $env:MAMBA_RADIAL_OUT = "$env:RUNNER_TEMP\wheel-reader.json"; Remove-Item Env:\MAMBA_RADIAL_SHOT -ErrorAction SilentlyContinue
+          $before = @(Select-String -Path $log -Pattern '"event":"opened"').Count
+          $p = Start-Process -FilePath $exe -ArgumentList '--radial', "`"$pdf`"" -PassThru; $p.WaitForExit(60000) | Out-Null
+          $ok = $false; for ($i = 0; $i -lt 40; $i++) { Start-Sleep 1; if (@(Select-String -Path $log -Pattern '"event":"opened"').Count -gt $before) { $ok = $true; break } }
+          Get-Content $log
+          if (!$ok) { throw 'wheel → Reader handoff failed' }
+          Get-Process 'Mamba Reader', 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
+
+      - name: Uninstall silently and verify the registry cleanup
+        shell: pwsh
+        run: |
+          Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2
+          Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Mamba Convert\Uninstall Mamba Convert.exe" -ArgumentList '/S' -Wait
+          $k = 'HKCU:\Software\Classes\SystemFileAssociations\.jpg\shell\MambaConvert'
+          for ($i = 0; $i -lt 60 -and (Test-Path $k); $i++) { Start-Sleep 1 }
+          foreach ($e in '.jpg', '.mp4', '.pdf', '.csv') { if (Test-Path "HKCU:\Software\Classes\SystemFileAssociations\$e\shell\MambaConvert") { throw "context menu left behind for $e" } }
+          if (Test-Path 'HKCU:\Software\Classes\Directory\shell\MambaConvert') { throw 'folder entry left behind' }
+          if ((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).MambaConvert) { throw 'Run entry left behind' }
+          Write-Host 'Uninstall removed all Explorer and startup registry entries.'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wheel-screenshots
+          path: shots/
 
       - uses: actions/upload-artifact@v4
         with:
@@ -67,6 +194,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          name: Mamba Convert ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
           files: |
             dist/MambaConvert-Setup-*.exe
             dist/MambaConvert-Portable-*.exe

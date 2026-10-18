@@ -1,0 +1,13 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:">
+<style>
+html,body{margin:0;background:transparent;overflow:hidden;user-select:none}
+#b{position:absolute;left:8px;top:8px;width:72px;height:72px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffb15c,#ff7a00 55%,#d95a00);box-shadow:0 6px 18px rgba(0,0,0,.35);display:grid;place-items:center;font-size:34px;cursor:grab;transition:transform .15s}
+#b:hover{transform:scale(1.06)}#b.over{transform:scale(1.18);box-shadow:0 0 0 6px rgba(255,122,0,.35),0 6px 18px rgba(0,0,0,.35)}
+#b:active{cursor:grabbing}
+</style></head>
+<body><div id="b">🐍</div>
+<script src="strings.js"></script>
+<script src="bubble.js"></script>
+</body></html>
