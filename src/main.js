@@ -12,11 +12,12 @@ function parseArgs(argv, first) {
     const a = list[i];
     if (a === '--radial') out.radial = true; else if (a === '--bubble') out.bubble = true; else if (a === '--background') out.background = true;
     else if (a === '--open-in-reader') out.openInReader = list[++i];
+    else if (a === '--edit-in-reader') { out.openInReader = list[++i]; out.readerEdit = true; }
     else if (a.startsWith('--')) continue; else { try { if (fs.existsSync(a)) out.files.push(path.resolve(a)); } catch (_) {} }
   }
   return out;
 }
-const SPECIAL_RUN = process.argv.includes('--self-test') || process.env.MAMBA_SMOKE || process.env.MAMBA_SELFTEST || process.argv.includes('--open-in-reader');
+const SPECIAL_RUN = process.argv.includes('--self-test') || process.env.MAMBA_SMOKE || process.env.MAMBA_SELFTEST || process.argv.includes('--open-in-reader') || process.argv.includes('--edit-in-reader');
 if (!SPECIAL_RUN && !process.env.MAMBA_NO_LOCK && !app.requestSingleInstanceLock()) { app.exit(0); }
 const earlyArgv = []; // second-instance launches that arrive before we are ready (Explorer multi-select)
 function handleSecond(argv) {
@@ -123,7 +124,7 @@ ipcMain.handle('enqueue', (_e, list) => enqueue(list));
 ipcMain.handle('cancel', (_e, id) => cancelJob(id));
 ipcMain.handle('retry', (_e, id) => { const r = jobs.get(id); if (r && ['error', 'cancelled'].includes(r.status)) { r.ctrl = new AbortController(); r.status = 'queued'; pending.push(id); send('job-update', { id, status: 'queued', progress: 0 }); pump(); } });
 ipcMain.handle('reader-status', () => !!findReader());
-ipcMain.handle('open-in-reader', (_e, p) => openInReader(p));
+ipcMain.handle('open-in-reader', (_e, p, o) => openInReader(p, o || {}));
 ipcMain.handle('show-item', (_e, p) => shell.showItemInFolder(p));
 ipcMain.handle('open-path', (_e, p) => shell.openPath(p));
 ipcMain.handle('helper-settings', () => ({ helper: helperEnabled(), hotkey: settings.hotkey !== false, startAtLogin: !!settings.startAtLogin, bubble: !!settings.bubble }));
@@ -163,7 +164,7 @@ app.whenReady().then(async () => {
     app.exit(r.failed ? 1 : 0); return;
   }
   const args = parseArgs(process.argv, true);
-  if (args.openInReader) { const r = openInReader(path.resolve(args.openInReader)); console.log('open-in-reader: ' + JSON.stringify(r)); if (process.env.MAMBA_HANDOFF_OUT) fs.writeFileSync(process.env.MAMBA_HANDOFF_OUT, JSON.stringify(r)); setTimeout(() => app.exit(r.ok ? 0 : 2), 800); return; }
+  if (args.openInReader) { const r = openInReader(path.resolve(args.openInReader), { edit: !!args.readerEdit }); console.log('open-in-reader: ' + JSON.stringify(r)); if (process.env.MAMBA_HANDOFF_OUT) fs.writeFileSync(process.env.MAMBA_HANDOFF_OUT, JSON.stringify(r)); setTimeout(() => app.exit(r.ok ? 0 : 2), 800); return; }
   controller = require('./radial/controller')({ app, enqueue, cancel: cancelJob, openMain, reader: { findReader, openInReader }, settings: () => settings, saveSettings: (s) => { settings = { ...settings, ...s }; saveSettings(); }, kindOf: (f) => E.kind(f), helperActive: () => helperEnabled() && !!controller._windows().tray, mainOpen: () => !!(win && !win.isDestroyed()) });
   if (settings.startAtLogin === undefined && app.isPackaged && process.platform === 'win32' && !process.env.PORTABLE_EXECUTABLE_FILE) { settings.startAtLogin = true; saveSettings(); }
   if (helperEnabled()) { controller.startHelper(); controller.applyLogin(); }

@@ -167,7 +167,7 @@ jobs:
         timeout-minutes: 10
         run: |
           Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
-          Invoke-WebRequest https://github.com/heisenberg0066/mamba-reader/releases/download/v1.0.0/MambaReader-Setup-1.0.0-x64.exe -OutFile "$env:RUNNER_TEMP\reader-setup.exe"
+          Invoke-WebRequest https://github.com/heisenberg0066/mamba-reader/releases/download/v1.1.0/MambaReader-Setup-1.1.0-x64.exe -OutFile "$env:RUNNER_TEMP\reader-setup.exe"
           $rexe = "$env:LOCALAPPDATA\Programs\Mamba Reader\Mamba Reader.exe"
           for ($try = 1; $try -le 4 -and !(Test-Path $rexe); $try++) { Start-Process "$env:RUNNER_TEMP\reader-setup.exe" -ArgumentList '/S' -Wait; for ($i = 0; $i -lt 60 -and !(Test-Path $rexe); $i++) { Start-Sleep 1 } }
           if (!(Test-Path $rexe)) { throw 'Reader not installed' }
@@ -187,6 +187,16 @@ jobs:
           $ok = $false; for ($i = 0; $i -lt 40; $i++) { Start-Sleep 1; if (@(Select-String -Path $log -Pattern '"event":"opened"').Count -gt $before) { $ok = $true; break } }
           Get-Content $log
           if (!$ok) { throw 'wheel → Reader handoff failed' }
+          # "Edit PDF": CLI handoff and the wheel's PDF tools → Edit PDF slice open Reader in edit mode
+          $p = Start-Process -FilePath $exe -ArgumentList '--edit-in-reader', "`"$pdf`"" -PassThru; $p.WaitForExit(60000) | Out-Null
+          $ok = $false; for ($i = 0; $i -lt 40; $i++) { Start-Sleep 1; if (Select-String -Path $log -Pattern '"event":"opened".*"mode":"edit"' -Quiet) { $ok = $true; break } }
+          if (!$ok) { Get-Content $log; throw 'Convert → Reader edit handoff failed' }
+          $before = @(Select-String -Path $log -Pattern '"mode":"edit"').Count
+          $env:MAMBA_RADIAL_AUTOPICK = 'pdf:edit'
+          $p = Start-Process -FilePath $exe -ArgumentList '--radial', "`"$pdf`"" -PassThru; $p.WaitForExit(60000) | Out-Null
+          $ok = $false; for ($i = 0; $i -lt 40; $i++) { Start-Sleep 1; if (@(Select-String -Path $log -Pattern '"mode":"edit"').Count -gt $before) { $ok = $true; break } }
+          Get-Content $log
+          if (!$ok) { throw 'wheel Edit PDF → Reader edit mode failed' }
           Get-Process 'Mamba Reader', 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
 
       - name: Uninstall silently and verify the registry cleanup

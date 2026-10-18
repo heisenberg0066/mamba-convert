@@ -134,6 +134,20 @@ const o = { outputDir: OUT };
   await check('wheel: every ring ≤ 8 slices and every leaf has an action', async () => { const walk = (items) => { if (items.length > RM.MAX_RING + 1) throw new Error('ring too big'); for (const i of items) { if (i.children) walk(i.children); else if (!i.action) throw new Error('leaf without action ' + i.id); } }; for (const f of [['a.jpg'], ['v.mp4'], ['s.mp3'], ['a.pdf', 'b.pdf'], ['d.docx'], ['x.csv'], ['b.epub']]) walk(RM.menuFor(f).items); return 'ok'; });
   await check('wheel: unsupported files ignored', async () => { if (RM.menuFor(['x.exe', 'y.dll']).items.length) throw new Error('items'); return 'ok'; });
   await check('wheel: compress resolves per file kind', async () => { const j = RM.resolveJobs({ type: 'compress', level: 'strong' }, ['a.jpg', 'v.mp4', 's.mp3', 'd.pdf']); const tools = j.map((x) => x.tool).join(','); if (tools !== 'compress-image,compress-video,compress-audio,compress-pdf') throw new Error(tools); return tools; });
+  await check('wheel: "Edit PDF" in PDF tools (single PDF) opens Reader in edit mode', async () => {
+    const one = RM.find(RM.menuFor(['/x/a.pdf'], { readerAvailable: true }).items, 'pdf:edit'); if (!one) throw new Error('missing for one PDF');
+    if (RM.find(RM.menuFor(['/x/a.pdf', '/x/b.pdf']).items, 'pdf:edit')) throw new Error('shown for 2 PDFs');
+    if (!RM.find(RM.menuFor(['/x/a.pdf'], { readerAvailable: false }).items, 'pdf:edit').disabled) throw new Error('not disabled without Reader');
+    const [j] = RM.resolveJobs(one.action, ['/x/a.pdf']); if (j.special !== 'reader' || j.edit !== true) throw new Error(JSON.stringify(j)); return 'special=reader edit=true';
+  });
+  await check('reader handoff: edit mode uses --edit / mamba-reader://edit', async () => {
+    const calls = []; const cp = require('child_process'); const orig = cp.spawn; cp.spawn = (exe, args) => { calls.push(args); return { unref() {} }; };
+    const fs = require('fs'); const os = require('os'); const path = require('path'); const fake = path.join(os.tmpdir(), 'fake-reader.exe'); fs.writeFileSync(fake, ''); process.env.MAMBA_READER_PATH = fake;
+    try { const R = require('../src/reader')({ app: {}, shell: {} }); R.openInReader('/x/a.pdf', { edit: true }); R.openInReader('/x/a.pdf'); } finally { cp.spawn = orig; delete process.env.MAMBA_READER_PATH; }
+    const urls = []; const R2 = require('../src/reader')({ app: { getApplicationNameForProtocol: (p) => (p === 'mamba-reader://' ? 'Mamba Reader' : '') }, shell: { openExternal: (u) => urls.push(u) } }); R2.openInReader('/x/a b.pdf', { edit: true });
+    if (JSON.stringify(calls) !== JSON.stringify([['--edit', '/x/a.pdf'], ['/x/a.pdf']])) throw new Error(JSON.stringify(calls));
+    if (process.platform !== 'win32' && urls[0] !== 'mamba-reader://edit?path=%2Fx%2Fa%20b.pdf') throw new Error(urls[0]); return 'argv --edit + protocol edit';
+  });
   await check('wheel: real job from the menu (png → webp via wheel)', async () => { const node = RM.find(RM.menuFor([png]).items, 'convert:webp'); const [job] = RM.resolveJobs(node.action, [png]); const { label, ...jj } = job; return E.runJob({ ...jj, outputDir: OUT }); });
   await check('installer.nsh covers every input extension', async () => { const nsh = fs.readFileSync(path.join(__dirname, '..', 'build', 'installer.nsh'), 'utf8'); const F = E.formats; for (const e of [...F.IMAGE_IN, ...F.VIDEO_IN, ...F.AUDIO_IN, ...F.PDF_IN, ...F.EBOOK_IN, ...F.DOC_IN, ...F.DATA_IN]) { if (!nsh.includes(`\\.${e}\\shell\\MambaConvert\\command`)) throw new Error('missing ' + e); if (!nsh.includes(`DeleteRegKey HKCU "Software\\Classes\\SystemFileAssociations\\.${e}\\shell\\MambaConvert"`)) throw new Error('no uninstall for ' + e); } return 'ok'; });
 

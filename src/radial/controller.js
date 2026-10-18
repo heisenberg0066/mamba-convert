@@ -135,7 +135,7 @@ module.exports = function createController(ctx) {
     const jobs = M.resolveJobs(action, files);
     const special = jobs.find((j) => j.special);
     if (special) {
-      if (special.special === 'reader') { for (const f of special.files) reader.openInReader(f); }
+      if (special.special === 'reader') { for (const f of special.files) { const r = reader.openInReader(f, { edit: special.edit }); wlog('reader', { file: f, ...r }); } }
       if (special.special === 'studio') openMain({ paths: special.files, tab: special.tab });
       return [];
     }

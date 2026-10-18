@@ -18,10 +18,12 @@ const READER_PROTOCOLS = ['mamba-reader', 'reader'];
     for (const p of READER_PROTOCOLS) { try { const n = app.getApplicationNameForProtocol(`${p}://`); if (n && !/mamba convert/i.test(n)) return { protocol: p, name: n }; } catch (_) {} }
     return null;
   }
-  function openInReader(file) {
+  // opts.edit: open the PDF in Mamba Reader's editor (Reader 1.1.0+: "--edit <file>" / mamba-reader://edit?path=)
+  function openInReader(file, opts = {}) {
     const r = findReader(); if (!r) return { ok: false, error: 'Mamba Reader is not installed' };
-    if (r.exe) { require('child_process').spawn(r.exe, [file], { detached: true, stdio: 'ignore' }).unref(); return { ok: true, via: 'exe' }; }
-    shell.openExternal(`${r.protocol}://open?path=${encodeURIComponent(file)}`); return { ok: true, via: r.protocol };
+    const edit = !!opts.edit;
+    if (r.exe) { require('child_process').spawn(r.exe, edit ? ['--edit', file] : [file], { detached: true, stdio: 'ignore' }).unref(); return { ok: true, via: 'exe', edit }; }
+    shell.openExternal(`${r.protocol}://${edit ? 'edit' : 'open'}?path=${encodeURIComponent(file)}`); return { ok: true, via: r.protocol, edit };
   }
   return { findReader, openInReader, READER_PROTOCOLS };
 };

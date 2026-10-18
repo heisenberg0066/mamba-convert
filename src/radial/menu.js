@@ -64,6 +64,7 @@ function menuFor(input, opts = {}) {
   ] }));
   // ---- PDF tools
   if (only('pdf')) root.push(L('pdf', '📑', 'pdfTools', { children: [
+    ...(n === 1 ? [L('pdf:edit', '✏️', 'editPdf', { action: { type: 'reader', edit: true }, disabled: opts.readerAvailable === false })] : []),
     ...(n > 1 ? [L('pdf:merge', '📑', 'merge', { action: { type: 'tool', tool: 'merge-pdf', params: {}, combine: true } })] : []),
     L('pdf:split', '🔪', 'split', { action: { type: 'tool', tool: 'split-pdf', params: { mode: 'each' } } }),
     L('pdf:rotate', '🔄', 'rotate', { children: ['90', '180', '270'].map((a) => L('pdf:rotate:' + a, '↻', a + '°', { action: { type: 'tool', tool: 'rotate-pdf', params: { angle: a } } })) }),
@@ -108,7 +109,7 @@ const COMPRESS_TOOL = { image: 'compress-image', video: 'compress-video', audio:
 function resolveJobs(action, input) {
   const files = describe(input);
   if (!action) return [];
-  if (action.type === 'reader' || action.type === 'studio') return [{ special: action.type, tab: action.tab, files: files.map((f) => f.path) }];
+  if (action.type === 'reader' || action.type === 'studio') return [{ special: action.type, tab: action.tab, edit: !!action.edit, files: files.map((f) => f.path) }];
   if (action.type === 'convert') return files.map((f) => ({ type: 'convert', files: [f.path], target: action.target, label: `${base(f.path)} → ${action.target.toUpperCase()}` }));
   if (action.type === 'edit') return files.map((f) => ({ type: 'convert', files: [f.path], target: imgSame(f.ext), options: { ...action.options, suffix: action.suffix }, label: base(f.path) }));
   if (action.type === 'compress') return files.map((f) => ({ type: 'tool', tool: COMPRESS_TOOL[f.kind], files: [f.path], options: { ...(f.kind === 'image' ? { format: 'same' } : {}), ...(f.kind === 'video' ? { format: 'mp4' } : {}), ...(f.kind === 'audio' ? { format: 'mp3' } : {}), ...COMPRESS[f.kind][action.level] }, label: `${base(f.path)} · ${action.level}` }));

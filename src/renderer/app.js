@@ -318,7 +318,10 @@ const Tools = {
     const drop = el('div', { class: 'drop mini' }, el('span', {}, `${t('dropTitle')} · ${t('accepts')}: ${tool.accepts.map((k) => t('kind_' + k)).join(', ')}`));
     dropZone(drop, addPaths);
     renderFiles();
-    const run = el('button', { class: 'primary', onclick: async () => {
+    const run = tool.reader ? el('button', { class: 'primary', onclick: async () => {
+      if (!list.length) return toast(t('addFiles'));
+      for (const f of list.slice(0, 1)) { const r = await api.openInReader(f.path, { edit: true }); if (!r || !r.ok) return toast(t('readerMissing')); toast(t('editOpened')); }
+    } }, t('openEditor')) : el('button', { class: 'primary', onclick: async () => {
       if (!list.length) return toast(t('addFiles')); if (tool.multi && list.length < (tool.minFiles || 2) && id !== 'images-to-pdf') return toast(t('needTwo'));
       const options = { ...vals }; const name = t('tool.' + id);
       const jobs = tool.multi ? [{ type: 'tool', tool: id, files: list.map((f) => f.path), options, label: `${list.length} ${t('files')}`, op: name }] : list.map((f) => ({ type: 'tool', tool: id, files: [f.path], options, label: f.name, op: name }));
@@ -326,10 +329,11 @@ const Tools = {
     } }, t('run'));
     const useConv = el('button', { class: 'ghost small', onclick: () => { uniqAdd(list, files.filter((f) => tool.accepts.includes(f.kind))); renderFiles(); } }, t('useConvertFiles'));
     const clr = el('button', { class: 'ghost small', onclick: () => { list.length = 0; renderFiles(); } }, t('clear'));
-    pane.replaceChildren(el('h2', {}, `${tool.icon} ${t('tool.' + id)}`), el('div', { class: 'muted' }, t('toolsSub')), el('div', { style: 'margin-top:14px' }, drop), el('div', { class: 'row', style: 'margin-top:8px' }, useConv, clr), fileBox, form, el('div', { class: 'row' }, run));
+    pane.replaceChildren(el('h2', {}, `${tool.icon} ${t('tool.' + id)}`), el('div', { class: 'muted' }, tool.reader ? t('editPdfSub') : t('toolsSub')), el('div', { style: 'margin-top:14px' }, drop), el('div', { class: 'row', style: 'margin-top:8px' }, useConv, clr), fileBox, form, el('div', { class: 'row' }, run));
   },
 };
-function renderToolGrid() { $('#toolGrid').replaceChildren(...catalog.tools.map((tl) => el('button', { class: 'toolcard' + (Tools.current && Tools.current.id === tl.id ? ' on' : ''), onclick: () => Tools.open(tl) }, el('span', { class: 'i' }, tl.icon), el('span', {}, t('tool.' + tl.id))))); }
+const EDIT_TOOL = { id: 'edit-pdf', icon: '✏️', accepts: ['pdf'], params: [], reader: true };
+function renderToolGrid() { $('#toolGrid').replaceChildren(...[EDIT_TOOL, ...catalog.tools].map((tl) => el('button', { class: 'toolcard' + (Tools.current && Tools.current.id === tl.id ? ' on' : ''), onclick: () => Tools.open(tl) }, el('span', { class: 'i' }, tl.icon), el('span', {}, t('tool.' + tl.id))))); }
 
 // ---------------- QUEUE ----------------
 const Q = { jobs: [], byId: new Map() };
@@ -379,5 +383,5 @@ api.onOpenFiles(async ({ paths, tab }) => {
 (async () => {
   S = await api.getSettings(); catalog = await api.catalog();
   Img.init(); Vid.init(); await refreshReader(); applyI18n();
-  window.__mamba = { Img, Vid, Tools, files, describe, showTab, renderConvert, uniqAdd, catalog, setFiles: async (p) => { uniqAdd(files, await describe(p)); renderConvert(); } };
+  window.__mamba = { EDIT_TOOL, Img, Vid, Tools, files, describe, showTab, renderConvert, uniqAdd, catalog, setFiles: async (p) => { uniqAdd(files, await describe(p)); renderConvert(); } };
 })();

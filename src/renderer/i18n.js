@@ -27,6 +27,7 @@ window.I18N = {
     audio: 'Audio', mute: 'Remove audio', normalize: 'Normalize loudness', speed: 'Speed', processedFrame: 'Preview edits on frame', notPlayable: 'Preview player can\'t play this codec — showing frames instead.', estimate: 'Estimated size', gifFps: 'GIF fps', gifWidth: 'GIF width',
     // tools
     toolsTitle: 'Tools', toolsSub: 'Pick a tool, add files, set options and run. Everything works in batch.', run: 'Run', pickTool: 'Choose a tool on the left', addFiles: 'Add files', needTwo: 'Add at least 2 files', accepts: 'Accepts',
+    'tool.edit-pdf': 'Edit PDF', editPdfSub: 'Opens the PDF in Mamba Reader\'s visual editor: edit text and images, sign, whiteout/redact, fill forms and rearrange pages. Saves a new "(edited)" copy.', openEditor: 'Open in PDF editor', editOpened: 'Opening in Mamba Reader…',
     'tool.compress-image': 'Compress image', 'tool.compress-video': 'Compress video', 'tool.compress-audio': 'Compress audio', 'tool.compress-pdf': 'Compress PDF', 'tool.trim': 'Trim audio / video',
     'tool.merge-pdf': 'Merge PDFs', 'tool.merge-audio': 'Merge audio', 'tool.merge-video': 'Merge videos', 'tool.images-to-pdf': 'Images → PDF', 'tool.split-pdf': 'Split PDF', 'tool.extract-pages': 'Extract PDF pages',
     'tool.rotate-pdf': 'Rotate PDF pages', 'tool.pdf-to-images': 'PDF → images', 'tool.pdf-to-text': 'PDF → text', 'tool.page-numbers': 'Add page numbers', 'tool.protect-pdf': 'Password-protect PDF',
@@ -68,6 +69,7 @@ window.I18N = {
     rate_crf: 'الجودة (CRF)', rate_bitrate: 'معدل البت (kbps)', rate_size: 'الحجم المستهدف (MB)', videoBitrate: 'معدل بت الفيديو (kbps)', targetMB: 'الحجم المستهدف (MB)',
     audio: 'الصوت', mute: 'إزالة الصوت', normalize: 'توحيد مستوى الصوت', speed: 'السرعة', processedFrame: 'معاينة التعديلات على إطار', notPlayable: 'المشغل لا يدعم هذا الترميز — يتم عرض إطارات بدلاً منه.', estimate: 'الحجم التقديري', gifFps: 'إطارات GIF', gifWidth: 'عرض GIF',
     toolsTitle: 'الأدوات', toolsSub: 'اختر أداة، أضف الملفات، اضبط الخيارات ثم شغّل. كل شيء يعمل على دفعات.', run: 'تشغيل', pickTool: 'اختر أداة من القائمة', addFiles: 'إضافة ملفات', needTwo: 'أضف ملفين على الأقل', accepts: 'يقبل',
+    'tool.edit-pdf': 'تحرير PDF', editPdfSub: 'يفتح ملف PDF في محرر مامبا ريدر المرئي: تعديل النصوص والصور، التوقيع، التبييض/الحجب، تعبئة النماذج وترتيب الصفحات. يحفظ نسخة جديدة "(edited)".', openEditor: 'فتح في محرر PDF', editOpened: 'جارٍ الفتح في مامبا ريدر…',
     'tool.compress-image': 'ضغط الصور', 'tool.compress-video': 'ضغط الفيديو', 'tool.compress-audio': 'ضغط الصوت', 'tool.compress-pdf': 'ضغط PDF', 'tool.trim': 'قص الصوت / الفيديو',
     'tool.merge-pdf': 'دمج ملفات PDF', 'tool.merge-audio': 'دمج الصوت', 'tool.merge-video': 'دمج الفيديو', 'tool.images-to-pdf': 'صور → PDF', 'tool.split-pdf': 'تقسيم PDF', 'tool.extract-pages': 'استخراج صفحات PDF',
     'tool.rotate-pdf': 'تدوير صفحات PDF', 'tool.pdf-to-images': 'PDF → صور', 'tool.pdf-to-text': 'PDF → نص', 'tool.page-numbers': 'إضافة أرقام الصفحات', 'tool.protect-pdf': 'حماية PDF بكلمة مرور',
