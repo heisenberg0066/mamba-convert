@@ -178,7 +178,7 @@ jobs:
         timeout-minutes: 10
         run: |
           Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
-          Invoke-WebRequest https://github.com/heisenberg0066/mamba-reader/releases/download/v1.1.0/MambaReader-Setup-1.1.0-x64.exe -OutFile "$env:RUNNER_TEMP\reader-setup.exe"
+          Invoke-WebRequest https://github.com/heisenberg0066/mamba-reader/releases/download/v1.2.0/MambaReader-Setup-1.2.0-x64.exe -OutFile "$env:RUNNER_TEMP\reader-setup.exe"
           $rexe = "$env:LOCALAPPDATA\Programs\Mamba Reader\Mamba Reader.exe"
           for ($try = 1; $try -le 4 -and !(Test-Path $rexe); $try++) { Start-Process "$env:RUNNER_TEMP\reader-setup.exe" -ArgumentList '/S' -Wait; for ($i = 0; $i -lt 60 -and !(Test-Path $rexe); $i++) { Start-Sleep 1 } }
           if (!(Test-Path $rexe)) { throw 'Reader not installed' }

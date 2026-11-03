@@ -18,6 +18,7 @@
 * **Fast with big PDFs:** thumbnails are rendered by MuPDF only when they scroll into view, and recently used documents stay open.
 * Works in English and Arabic (RTL). Existing files are still never overwritten.
 * **Tests:** unit tests for ordering, grouping, presets and output naming; real PDF checks of page order, rotation and page count for merge and split; a UI test that drives the organiser in the app window (click / Shift / Ctrl selection, drag and drop, keyboard, undo/redo, presets, saving through the queue). It runs in CI on the packaged Windows app.
+* CI now checks the Convert → Reader handoff (open and Edit PDF) against **Mamba Reader 1.2.0**.
 
 ---
 

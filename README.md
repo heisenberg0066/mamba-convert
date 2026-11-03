@@ -132,7 +132,7 @@ CI: `.github/workflows/build-windows.yml` runs on `windows-latest` and does the 
 2. Builds the app and runs the packaged smoke test, the wheel UI test and the page organiser UI test, which produce screenshots.
 3. Installs it silently and checks the registry.
 4. Runs the exact Explorer command line for a single file, a 3-file multi-select and a folder.
-5. Installs the released Mamba Reader and checks the Convert → Reader handoff.
+5. Installs the released Mamba Reader (1.2.0) and checks the Convert → Reader handoff.
 6. Uninstalls it and checks that the registry was cleaned.
 7. Publishes a Release for `v*` tags.
 
