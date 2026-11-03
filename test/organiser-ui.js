@@ -89,6 +89,15 @@ module.exports = async ({ E }) => {
   await step('split: Delete takes pages out of a group; Ctrl+Z puts them back', async () => { await js(`__t.click('5', {}, 1); document.querySelector('.org-grid').focus()`); key('Delete'); await sleep(150); const a = await labels(); key('Z', ['control']); await sleep(150); const b = await labels(); return must(a === '1 2 3 |  | 8 9 10 | 4 5 6 7 11 12' && b === '1 2 3 | 5 | 8 9 10 | 4 6 7 11 12', `${a} || ${b}`); });
   await step('split: every 4 pages preset', async () => { await js(`{ const p = document.querySelector('.org-presets'); const n = p.querySelector('input.n3'); n.value = '4'; n.dispatchEvent(new Event('input')); [...p.querySelectorAll('button')].find(b => b.textContent === 'Apply').click(); }`); await sleep(200); const l = await labels(); return must(l === '1 2 3 4 | 5 6 7 8 | 9 10 11 12 | ', l); });
   await step('split: by bookmarks preset uses the outline (3 groups named after bookmarks)', async () => { await js(`[...document.querySelectorAll('.org-presets button')].find(b => b.textContent === 'By bookmarks').click()`); await sleep(200); const n = await js(`[...document.querySelectorAll('.org-sec .gname')].map(i => i.value).join(',')`); const l = await labels(); await shot('split-bookmarks.png'); return must(n === 'Invoice 1001,Invoice 1002,Receipts' && l === '1 2 3 4 | 5 6 7 8 9 | 10 11 12 | ', `${n}: ${l}`); });
+  await step('large PDF (240 pages): thumbnails load lazily as you scroll, not all at once', async () => {
+    const big = await F.labelledPdf(path.join(dir, 'Big.pdf'), 'P', 240); await openTool('merge-pdf', [big]);
+    await until(() => js(`document.querySelectorAll('.pg').length === 240`), 30000);
+    const first = await until(() => js(`(() => { const n = document.querySelectorAll('.pg img[src^="blob:"]').length; return n > 0 ? n : null; })()`), 30000);
+    await sleep(1500); const settled = await js(`document.querySelectorAll('.pg img[src^="blob:"]').length`);
+    await js(`{ const g = document.querySelector('.org-grid'); g.scrollTop = g.scrollHeight; }`);
+    const last = await until(() => js(`(() => { const p = [...document.querySelectorAll('.pg')].pop(); const i = p.querySelector('img'); return (i.src || '').startsWith('blob:') ? 'P240 loaded' : null; })()`), 30000);
+    return must(!!(first && settled < 240 && last), `${settled} of 240 rendered before scrolling, ${last || 'last page not loaded'}`);
+  });
   await step('no renderer errors', async () => must(!errs.length, errs.join(' | ') || 'none'));
   // leave the profile as we found it (later CI steps rely on "next to original")
   await js(`window.api.setSettings(${JSON.stringify({ outputMode: before.outputMode || 'same', outputDir: before.outputDir || '', lang: before.lang || 'en' })})`);

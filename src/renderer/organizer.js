@@ -38,7 +38,6 @@ class Organizer {
   constructor(kind, state, { onRun, onFilesChanged } = {}) {
     this.kind = kind; this.s = state; this.onRun = onRun; this.onFilesChanged = onFilesChanged; this.size = state.size || 120;
     this.root = el('div', { class: 'org org-' + kind });
-    this.io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { const im = e.target; this.io.unobserve(im); Thumbs.want(im.dataset.path, +im.dataset.page, im); } }), { rootMargin: '400px' });
     this.render();
   }
   get doc() { return this.s.hist.doc; }
@@ -58,7 +57,7 @@ class Organizer {
 
   // ---------- rendering ----------
   render() {
-    this.io.disconnect(); const d = this.doc; const keepScroll = this.grid ? this.grid.scrollTop : 0; const hadFocus = this.grid && document.activeElement === this.grid;
+    if (this.io) this.io.disconnect(); const d = this.doc; const keepScroll = this.grid ? this.grid.scrollTop : 0; const hadFocus = this.grid && document.activeElement === this.grid;
     const btn = (key, fn, extra = {}) => el('button', { class: 'ghost small', title: t(key + '_tip') !== key + '_tip' ? t(key + '_tip') : '', onclick: fn, ...extra }, t(key));
     const n = this.s.sel.length;
     const tools = el('div', { class: 'org-bar' },
@@ -73,6 +72,8 @@ class Organizer {
       el('label', { class: 'org-zoom', title: t('org_size') }, '🔍', el('input', { type: 'range', min: 80, max: 220, value: this.size, oninput: (e) => { this.size = this.s.size = +e.target.value; this.grid.style.setProperty('--th', this.size + 'px'); } })));
     const head = this.kind === 'merge' ? this.legend() : this.splitBar();
     this.grid = el('div', { class: 'org-grid', tabindex: 0, style: `--th:${this.size}px` });
+    // lazy thumbnails: watch each page box (the <img> has no height before it loads) against the grid, with a prefetch margin
+    this.io = new IntersectionObserver((es) => es.forEach((e) => { if (!e.isIntersecting) return; const box = e.target; this.io.unobserve(box); const im = box.querySelector('img'); if (im && !im.src) Thumbs.want(im.dataset.path, +im.dataset.page, im); }), { root: this.grid, rootMargin: '600px 0px' });
     this.bindGrid();
     if (this.kind === 'merge') this.grid.append(this.section(d.sections[0], 0, false));
     else { d.sections.forEach((s, i) => this.grid.append(this.section(s, i, true))); this.grid.append(this.section({ id: 'pool', name: t('org_unassigned'), items: d.pool || [] }, -1, true)); }
@@ -139,12 +140,12 @@ class Organizer {
     const d = this.doc; const f = PM.fileById(d, it.f); const size = (f.sizes && (f.sizes[it.p] || f.sizes[0])) || [595, 842];
     const rot = it.r % 180 !== 0; const ar = rot ? size[1] / size[0] : size[0] / size[1];
     const img = el('img', { alt: '', draggable: 'false', 'data-path': f.path, 'data-page': it.p, style: rot ? `transform:rotate(${it.r}deg);width:${(1 / ar) * 100}%;max-width:none` : (it.r ? `transform:rotate(${it.r}deg)` : '') });
-    const k = Thumbs.key(f.path, it.p); if (Thumbs.url.has(k)) img.src = Thumbs.url.get(k); else this.io.observe(img);
+    const k = Thumbs.key(f.path, it.p); const imBox = el('div', { class: 'im', style: `aspect-ratio:${ar}` }, img); if (Thumbs.url.has(k)) img.src = Thumbs.url.get(k); else this.io.observe(imBox);
     const col = this.kind === 'merge' ? PM.color(f.ci) : (secIdx < 0 ? POOL_COLOR : PM.color(secIdx));
     const lab = this.kind === 'merge' ? `${letter(f.ci)}·${it.p + 1}` : `${it.p + 1}`;
     const mini = (txt, tip, fn) => el('button', { title: tip, onclick: (e) => { e.stopPropagation(); fn(); } }, txt);
     const box = el('div', { class: 'pg' + (selected ? ' on' : '') + (this.s.focus === it.id ? ' focus' : ''), draggable: 'true', 'data-id': it.id, title: `${f.name} · ${t('org_page')} ${it.p + 1}${it.r ? ` · ${it.r}°` : ''}`, style: `--c:${col}` },
-      el('div', { class: 'im', style: `aspect-ratio:${ar}` }, img),
+      imBox,
       el('div', { class: 'lb' }, el('span', { class: 'tag' }, lab), it.r ? el('span', { class: 'rot' }, `↻${it.r}°`) : null),
       el('div', { class: 'acts' }, mini('⟲', t('org_rotL'), () => this.rotate(-90, [it.id])), mini('⟳', t('org_rotR'), () => this.rotate(90, [it.id])), mini('×2', t('org_dup'), () => this.duplicate([it.id])), mini('✕', t(this.kind === 'merge' ? 'org_del' : 'org_unassign'), () => this.del([it.id]))));
     box.addEventListener('click', (e) => this.click(it.id, e));
