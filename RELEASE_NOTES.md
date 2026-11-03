@@ -1,3 +1,26 @@
+**Mamba Convert 1.4.0: page organiser for Merge and Split**
+
+* **New: organise pages when merging.** After adding PDFs (or images) to **Merge PDFs**, every page appears in a thumbnail grid, colour- and letter-coded by file (A·1, B·3 …).
+  * Drag and drop pages to reorder them, inside a file or across files.
+  * Reorder whole files: drag a file chip onto another, or use ↑ / ↓.
+  * Delete, rotate (90° steps) or duplicate pages.
+  * Insert another PDF or image at any position with **Insert file…**, or drop it on the grid where it should go.
+  * Select several pages with Shift or Ctrl and move them together.
+  * The merged PDF has exactly that order; you can name the output file.
+* **New: build split outputs visually.** **Split PDF** shows the PDF's pages so you can put them into **groups** (Group 1, 2, 3 …, each with its own colour). Each group becomes one PDF.
+  * Select pages (click, Shift+click, Ctrl+click) and press 1–9 or a group button.
+  * Drag pages between groups, or reorder them inside a group.
+  * Name each output file.
+  * Quick groups: every page, every N pages, ranges such as `1-3, 5, 8-10`, and by bookmarks when the PDF has them.
+  * Pages that are not in any group are not saved; the preview tells you how many.
+* **Preview & save:** before anything is written you see each output's name, page count, page list and thumbnails.
+* **Undo / redo** for every organiser action, and keyboard control: Delete, Ctrl+Z, Ctrl+Y, Ctrl+A, arrows (Shift extends the selection, Ctrl moves the selected pages), R to rotate, Ctrl+D to duplicate.
+* **Fast with big PDFs:** thumbnails are rendered by MuPDF only when they scroll into view, and recently used documents stay open.
+* Works in English and Arabic (RTL). Existing files are still never overwritten.
+* **Tests:** unit tests for ordering, grouping, presets and output naming; real PDF checks of page order, rotation and page count for merge and split; a UI test that drives the organiser in the app window (click / Shift / Ctrl selection, drag and drop, keyboard, undo/redo, presets, saving through the queue). It runs in CI on the packaged Windows app.
+
+---
+
 **Mamba Convert 1.3.0: Edit PDF**
 
 * **New: Edit PDF.** It opens a PDF in Mamba Reader's visual editor, which needs Reader 1.1.0 or later. There you can:

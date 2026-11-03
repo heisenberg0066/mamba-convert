@@ -49,11 +49,11 @@ async function runTool(id, files, o = {}, ctl = {}) {
     case 'compress-pdf': return one((f, c) => pdf.compress(f, o, c));
     case 'trim': return one((f, c) => o.fast ? media.trimFast(f, o, c) : media.convert(f, sameFmt(f), { ...sfx('-trimmed'), crf: 18 }, c));
     case 'make-flipbook': return [await flipbook.makeFlipbook(files, o, ctl)];
-    case 'merge-pdf': return [await pdf.merge(files, o)];
+    case 'merge-pdf': if (Array.isArray(o.layout) && o.layout.length) return pdf.organize([{ name: o.name, pages: o.layout }], { ...o, firstFile: files[0], suffix: '-merged' }, ctl); return [await pdf.merge(files, o)];
     case 'merge-audio': return [await media.mergeAudio(files, o.format || 'mp3', o, ctl)];
     case 'merge-video': return [await media.mergeVideo(files, o.format || 'mp4', o, ctl)];
     case 'images-to-pdf': return [await image.imagesToPdf(files, o)];
-    case 'split-pdf': return (await seq(files, (f) => pdf.split(f, o), ctl)).flat();
+    case 'split-pdf': if (Array.isArray(o.groups) && o.groups.length) return pdf.organize(o.groups, { ...o, firstFile: files[0] }, ctl); return (await seq(files, (f) => pdf.split(f, o), ctl)).flat();
     case 'extract-pages': return one((f) => pdf.extractPages(f, o));
     case 'rotate-pdf': return one((f) => pdf.rotate(f, o));
     case 'pdf-to-images': return (await seq(files, (f, c) => pdf.toImages(f, o.format || 'png', o, c), ctl)).flat();

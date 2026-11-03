@@ -27,12 +27,19 @@ Everything runs locally: FFmpeg, libvips (sharp), MuPDF and pdf-lib are bundled.
   The flip engine is `src/flipbook/flip-engine.{js,css}`, with no dependencies, and is meant to be shared with Mamba Reader.
   Finished flipbooks have an **Open in Mamba Reader** button. It works when Reader is found as an installed exe (`%LOCALAPPDATA%\Programs\Mamba Reader\Mamba Reader.exe`, Program Files, or `MAMBA_READER_PATH`), or as a registered `mamba-reader://` (or `reader://`) protocol. The protocol handoff is `mamba-reader://open?path=<file>`.
   **Edit PDF** (in the wheel's PDF tools and on the Tools tab) opens Mamba Reader 1.1.0+ in its PDF editor, via `--edit <file>` or `mamba-reader://edit?path=<file>`.
+- **Page organiser** (new in 1.4) in **Merge PDFs** and **Split PDF**: a thumbnail grid of every page, rendered lazily with MuPDF so big PDFs stay fast.
+  - **Merge**: pages from all files are colour- and letter-coded by source (A·1, B·3 …). Drag and drop to reorder within and across files; reorder whole files (drag a file chip onto another, or ↑ / ↓); delete, rotate or duplicate pages; insert another PDF or image at any position (**Insert file…**, or drop files on the grid). The merged PDF follows exactly that order.
+  - **Split**: put pages into colour-coded **groups**, each one output PDF with its own name. Select with click, Shift+click or Ctrl+click and press 1–9 (or a group button); drag pages between groups or inside a group. Quick groups: every page, every N pages, ranges like `1-3, 5, 8-10`, or by top-level bookmarks. Pages left in *Not in any group* are not saved.
+  - **Preview & save** lists every output (name, page count, page list, thumbnails) before anything is written.
+  - Undo / redo for every organiser action. Keys: Delete, Ctrl+Z, Ctrl+Y (or Ctrl+Shift+Z), Ctrl+A, arrows move the focus (Shift extends the selection), Ctrl+arrows move the selected pages, R / Shift+R rotate, Ctrl+D duplicates, Esc clears the selection. Works in the Arabic (RTL) UI too.
 - **Tools tab** with 31 batch tools (listed below).
 - English UI plus **Arabic UI (RTL)**. Light theme.
 
 ![Image Studio](docs/image.png)
 ![Video Studio](docs/video.png)
 ![Flipbook](docs/flipbook.png)
+![Merge organiser](docs/organiser-merge.png)
+![Split groups](docs/organiser-split.png)
 
 ## Supported conversions
 There are 961 input→output pairs, or 875 unique ones when aliases such as jpeg/jpg are counted once.
@@ -54,11 +61,11 @@ There are 961 input→output pairs, or 875 unique ones when aliases such as jpeg
 - 🎧 **Compress audio** — accepts audio
 - 📉 **Compress PDF** — accepts pdf
 - ✂️ **Trim audio / video** — accepts video/audio
-- 📑 **Merge PDFs** — accepts pdf/image
+- 📑 **Merge PDFs** — accepts pdf/image (page organiser)
 - 🎼 **Merge audio** — accepts audio/video
 - 🎞️ **Merge videos** — accepts video
 - 🖼️ **Images → PDF** — accepts image
-- 🔪 **Split PDF** — accepts pdf
+- 🔪 **Split PDF** — accepts pdf (page groups)
 - 📄 **Extract PDF pages** — accepts pdf
 - 🔄 **Rotate PDF pages** — accepts pdf
 - 🧩 **PDF → images** — accepts pdf/ebook
@@ -117,11 +124,12 @@ npm ci
 # put ffmpeg.exe + ffprobe.exe in vendor/ffmpeg-win/ (gyan.dev essentials build)
 # put the @img/sharp-win32-x64 package in vendor/sharp-win32-x64/
 npx electron-builder --win --x64      # works on Linux too, without wine (icon is embedded with resedit)
-node test/run-tests.js                 # engine tests (uses system ffmpeg on Linux)
+node test/run-tests.js                 # engine + organiser model tests (uses system ffmpeg on Linux)
+npm run test:organiser                 # page organiser UI test in the real window (xvfb); screenshots in out/organiser/
 ```
 CI: `.github/workflows/build-windows.yml` runs on `windows-latest` and does the following:
 1. Runs the engine and wheel-model tests.
-2. Builds the app and runs the packaged smoke test and the wheel UI test, which produces screenshots.
+2. Builds the app and runs the packaged smoke test, the wheel UI test and the page organiser UI test, which produce screenshots.
 3. Installs it silently and checks the registry.
 4. Runs the exact Explorer command line for a single file, a 3-file multi-select and a folder.
 5. Installs the released Mamba Reader and checks the Convert → Reader handoff.
@@ -134,6 +142,7 @@ CI: `.github/workflows/build-windows.yml` runs on `windows-latest` and does the 
 - PDF *lossless* compression only re-optimizes streams. *Strong* compression rasterizes pages to images, so text is no longer selectable.
 - No RAW camera formats, PSD, or animated-image editing in Image Studio (only the first frame is edited).
 - Unsigned build, so SmartScreen shows a warning.
+- The page organiser is in the Tools tab. The wheel's *PDF tools → Merge / Split* still run straight away (all pages in file order / every page) without the organiser. Split organises one PDF at a time (pick it from the list when several are added). Bookmarks presets use top-level bookmarks only. Rotation is in 90° steps.
 - Windows 11: the wheel is under "Show more options". Ctrl+Alt+M works for File Explorer windows but not for files selected on the desktop itself. With several Explorer tabs, the first tab that has a selection wins.
 
 Licenses: FFmpeg (GPLv3 build from gyan.dev), MuPDF (AGPL), libvips (LGPL), pdf-lib (MIT), Electron (MIT). Free for personal use.

@@ -182,6 +182,90 @@ async function protect(file, o = {}) {
   await fsp.writeFile(dest, Buffer.from(buf.asUint8Array())); return dest;
 }
 
+// ---------- page organiser (Merge / Split): page info, lazy thumbnails, ordered output ----------
+const docCache = new Map(); // path -> { mtime, m, doc }  (a few documents stay open so thumbnails of big PDFs are fast)
+async function cachedDoc(file) {
+  const mtime = (await fsp.stat(file)).mtimeMs; const hit = docCache.get(file);
+  if (hit && hit.mtime === mtime) { docCache.delete(file); docCache.set(file, hit); return hit; }
+  const { m, doc } = await openDoc(file); const rec = { mtime, m, doc }; docCache.set(file, rec);
+  while (docCache.size > 4) { const [k, v] = docCache.entries().next().value; docCache.delete(k); try { v.doc.destroy && v.doc.destroy(); } catch (_) {} }
+  return rec;
+}
+const isImageFile = (f) => { try { return require('./formats').kindOf(ext(f)) === 'image'; } catch (_) { return false; } };
+
+/** { pages, sizes: [[w,h]…] (points, as displayed), bookmarks: [{ title, page, depth }] } */
+async function pagesInfo(file) {
+  if (isImageFile(file)) {
+    const { loadInput } = require('./image'); const md = await sharp(await loadInput(file)).metadata();
+    const swap = (md.orientation || 1) >= 5; return { pages: 1, sizes: [swap ? [md.height, md.width] : [md.width, md.height]], bookmarks: [], image: true };
+  }
+  const { doc } = await cachedDoc(file); const n = doc.countPages(); const sizes = [];
+  for (let i = 0; i < Math.min(n, 5000); i++) { try { const pg = doc.loadPage(i); const [x0, y0, x1, y1] = pg.getBounds(); sizes.push([Math.round(x1 - x0), Math.round(y1 - y0)]); pg.destroy && pg.destroy(); } catch (_) { sizes.push(sizes[0] || [595, 842]); } }
+  const bookmarks = [];
+  const walk = (list, depth) => (list || []).forEach((it) => { if (it.title != null) bookmarks.push({ title: String(it.title), page: typeof it.page === 'number' ? it.page : -1, depth }); walk(it.down, depth + 1); });
+  try { walk(doc.loadOutline(), 0); } catch (_) {}
+  return { pages: n, sizes, bookmarks };
+}
+
+/** JPEG thumbnail (Buffer) of one page, `width` px wide. Pages render with their own /Rotate; extra rotation is CSS. */
+async function thumbnail(file, page = 0, width = 160) {
+  width = Math.max(32, Math.min(1200, Math.round(width)));
+  if (isImageFile(file)) { const { loadInput } = require('./image'); return sharp(await loadInput(file)).rotate().resize({ width, withoutEnlargement: true }).flatten({ background: '#ffffff' }).jpeg({ quality: 72 }).toBuffer(); }
+  const { m, doc } = await cachedDoc(file);
+  const pg = doc.loadPage(page); const [x0, , x1] = pg.getBounds(); const sc = width / Math.max(1, x1 - x0);
+  const pix = pg.toPixmap(m.Matrix.scale(sc, sc), m.ColorSpace.DeviceRGB, false, true);
+  const buf = await sharp(Buffer.from(pix.asPNG())).jpeg({ quality: 72 }).toBuffer();
+  pix.destroy && pix.destroy(); pg.destroy && pg.destroy(); return buf;
+}
+
+function uniqueDest(dir, name) {
+  let c = path.join(dir, `${name}.pdf`); let i = 1;
+  while (require('fs').existsSync(c)) c = path.join(dir, `${name} (${i++}).pdf`);
+  return c;
+}
+/**
+ * Write organised outputs: outs = [{ name, pages: [{ path, page (0-based), rotate (extra degrees) }] }].
+ * Pages keep exactly the given order; duplicates are separate copies; images become one page each.
+ * o.outputDir / next to the first source; unnamed outputs use `<first source><o.suffix>`. Returns the written paths.
+ */
+async function organize(outs, o = {}, { onProgress, signal } = {}) {
+  outs = (outs || []).filter((x) => x && x.pages && x.pages.length);
+  if (!outs.length) throw new Error('No pages to write');
+  const docs = new Map(); const tmps = [];
+  const source = async (f) => {
+    if (docs.has(f)) return docs.get(f);
+    let file = f;
+    if (ext(f) !== 'pdf') { const { imagesToPdf } = require('./image'); file = path.join(require('os').tmpdir(), `mamba-org-${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`); await imagesToPdf([f], { dest: file, pageSize: o.pageSize }); tmps.push(file); }
+    const d = await load(file); docs.set(f, d); return d;
+  };
+  const total = outs.reduce((a, x) => a + x.pages.length, 0); let done = 0; const written = [];
+  try {
+    for (const out of outs) {
+      if (signal && signal.aborted) throw new Error('Cancelled');
+      const d = await PDFDocument.create();
+      // one copyPages per source file keeps shared fonts/images single in the output
+      const bySrc = new Map(); out.pages.forEach((pg, k) => { if (!bySrc.has(pg.path)) bySrc.set(pg.path, []); bySrc.get(pg.path).push(k); });
+      const copied = new Array(out.pages.length);
+      for (const [f, ks] of bySrc) {
+        const s = await source(f); const n = s.getPageCount();
+        ks.forEach((k) => { const p = out.pages[k].page; if (!(p >= 0 && p < n)) throw new Error(`Page ${p + 1} is not in ${path.basename(f)} (${n} pages)`); });
+        const pages = await d.copyPages(s, ks.map((k) => out.pages[k].page)); ks.forEach((k, j) => { copied[k] = pages[j]; });
+      }
+      out.pages.forEach((pg, k) => {
+        const cp = copied[k]; const r = ((Number(pg.rotate) || 0) % 360 + 360) % 360;
+        if (r) cp.setRotation(degrees((cp.getRotation().angle + r) % 360));
+        d.addPage(cp); done++; onProgress && onProgress(done / total * 0.95);
+      });
+      const first = out.pages[0].path; const dir = o.outputDir || path.dirname(first);
+      const name = out.name && String(out.name).trim();
+      const dest = outs.length === 1 && o.dest ? o.dest : name ? uniqueDest(dir, name) : outPath(o.firstFile || first, 'pdf', { outputDir: dir, suffix: o.suffix || '-organised' });
+      await fsp.writeFile(dest, await d.save()); written.push(dest);
+    }
+  } finally { tmps.forEach((t) => fsp.rm(t, { force: true }).catch(() => {})); }
+  onProgress && onProgress(1);
+  return written;
+}
+
 async function pageCount(file) { try { return (await load(file)).getPageCount(); } catch (_) { const { doc } = await openDoc(file); return doc.countPages(); } }
 
-module.exports = { _openDoc: openDoc, merge, split, extractPages, rotate, pageNumbers, stripMetadata, toImages, toText, docToPdf, compress, protect, pageCount, parseRanges };
+module.exports = { _openDoc: openDoc, merge, split, extractPages, rotate, pageNumbers, stripMetadata, toImages, toText, docToPdf, compress, protect, pageCount, parseRanges, pagesInfo, thumbnail, organize };

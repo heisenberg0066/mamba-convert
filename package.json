@@ -1,7 +1,7 @@
 {
   "name": "mamba-convert",
   "productName": "Mamba Convert",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Offline, local-only file converter and toolbox for Windows",
   "author": "Ammar",
   "license": "MIT",
@@ -11,6 +11,7 @@
     "test": "node test/run-tests.js",
     "dist:win": "electron-builder --win --x64",
     "prebuild:win": "node build/gen-shell-nsh.js",
+    "test:organiser": "MAMBA_NO_LOCK=1 MAMBA_NO_TRAY=1 MAMBA_RADIAL_TEST=1 MAMBA_RADIAL_SCRIPT=test/organiser-ui.js xvfb-run -a -s '-screen 0 1600x1000x24' electron --no-sandbox .",
     "test:radial": "MAMBA_NO_LOCK=1 MAMBA_NO_TRAY=1 MAMBA_RADIAL_TEST=1 MAMBA_RADIAL_SCRIPT=test/radial-test.js xvfb-run -a electron --no-sandbox ."
   },
   "dependencies": {

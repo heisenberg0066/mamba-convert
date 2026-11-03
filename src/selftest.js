@@ -17,6 +17,7 @@ module.exports = async function selfTest(E, outDir) {
   await ok('mp4→gif', () => E.runJob({ type: 'convert', files: [mp4], target: 'gif' }));
   await ok('pdf→png (mupdf)', () => E.runJob({ type: 'convert', files: [pdf], target: 'png' }));
   await ok('merge pdf', () => E.runJob({ type: 'tool', tool: 'merge-pdf', files: [pdf, pdf] }));
+  await ok('organised merge (page order + rotation)', async () => { const r = await E.runJob({ type: 'tool', tool: 'merge-pdf', files: [pdf], options: { layout: [{ path: pdf, page: 0, rotate: 90 }, { path: pdf, page: 0, rotate: 0 }] } }); const o = await PDFDocument.load(fs.readFileSync(r[0])); if (o.getPageCount() !== 2 || o.getPage(0).getRotation().angle !== 90) throw new Error('bad output'); return r; });
   await ok('images→pdf', () => E.runJob({ type: 'tool', tool: 'images-to-pdf', files: [png, png] }));
   await ok('pdf→flipbook', () => E.runJob({ type: 'convert', files: [pdf], target: 'flipbook' }));
   const md = path.join(outDir, 't.md'); fs.writeFileSync(md, '# Hi\n\nمرحبا');

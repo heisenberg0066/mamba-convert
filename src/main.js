@@ -110,6 +110,8 @@ ipcMain.handle('image-info', async (_e, file) => E.image.info(file));
 ipcMain.handle('probe', async (_e, file) => E.media.probe(file));
 ipcMain.handle('video-frame', async (_e, file, at, opts) => E.media.frame(file, at, opts || {}));
 ipcMain.handle('pdf-pages', async (_e, file) => E.pdf.pageCount(file));
+ipcMain.handle('pages-info', async (_e, file) => E.pdf.pagesInfo(file));
+ipcMain.handle('page-thumb', async (_e, file, page, width) => E.pdf.thumbnail(file, page, width));
 function enqueue(list) {
   const ids = [];
   for (const job of list) {

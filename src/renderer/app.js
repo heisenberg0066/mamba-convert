@@ -300,7 +300,7 @@ const Tools = {
     const list = (this.files[id] = this.files[id] || []); const vals = (this.values[id] = this.values[id] || Object.fromEntries(tool.params.map((p) => [p.key, p.def])));
     const form = el('div', { class: 'form' });
     const renderForm = () => {
-      form.replaceChildren(...tool.params.filter((p) => !(SHOW_IF[id] && SHOW_IF[id][p.key]) || SHOW_IF[id][p.key](vals)).map((p) => {
+      form.replaceChildren(...tool.params.filter((p) => !(id === 'split-pdf' && OrgTools.supports(id))).filter((p) => !(SHOW_IF[id] && SHOW_IF[id][p.key]) || SHOW_IF[id][p.key](vals)).map((p) => {
         const lab = t('p.' + p.key); let input;
         if (p.type === 'select') input = el('select', { onchange: (e) => { vals[p.key] = e.target.value; renderForm(); } }, p.options.map((o) => el('option', { value: o, selected: String(vals[p.key]) === String(o) }, I18N.en['o.' + o] !== undefined ? t('o.' + o) : (p.key === 'height' && o ? o + 'p' : o))));
         else if (p.type === 'checkbox') return el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: !!vals[p.key], onchange: (e) => { vals[p.key] = e.target.checked; } }), ' ', lab);
@@ -311,11 +311,14 @@ const Tools = {
     };
     renderForm();
     const fileBox = el('div', { class: 'tfiles' });
-    const renderFiles = () => fileBox.replaceChildren(...(list.length ? list.map((f, i) => el('div', { class: 'tfile' }, el('span', {}, i + 1 + '.'), el('span', { class: 'n', title: f.path }, f.name), el('span', { class: 'muted' }, fmtBytes(f.size)),
-      tool.multi ? el('button', { title: '↑', onclick: () => { if (i) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; renderFiles(); } } }, '↑') : null,
+    const orgHost = OrgTools.supports(id) ? el('div', { class: 'orghost' }) : null;
+    const mountOrg = () => orgHost && OrgTools.mount(id, list, orgHost, { vals, enqueue, cur: Tools.splitCur, setCur: (p) => { Tools.splitCur = p; }, refreshList: () => listFiles() });
+    const renderFiles = () => { listFiles(); mountOrg(); };
+    const listFiles = () => fileBox.replaceChildren(...(list.length ? list.map((f, i) => el('div', { class: 'tfile' }, el('span', {}, i + 1 + '.'), el('span', { class: 'n', title: f.path }, f.name), el('span', { class: 'muted' }, fmtBytes(f.size)),
+      tool.multi && !orgHost ? el('button', { title: '↑', onclick: () => { if (i) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; renderFiles(); } } }, '↑') : null,
       el('button', { onclick: () => { list.splice(i, 1); renderFiles(); } }, '✕'))) : [el('div', { class: 'muted' }, '—')]));
     const addPaths = async (paths) => { const d = (await describe(paths)).filter((f) => tool.accepts.includes(f.kind)); uniqAdd(list, d); renderFiles(); };
-    const drop = el('div', { class: 'drop mini' }, el('span', {}, `${t('dropTitle')} · ${t('accepts')}: ${tool.accepts.map((k) => t('kind_' + k)).join(', ')}`));
+    const drop = el('div', { class: 'drop mini' + (OrgTools.supports(id) ? ' slim' : '') }, el('span', {}, `${t('dropTitle')} · ${t('accepts')}: ${tool.accepts.map((k) => t('kind_' + k)).join(', ')}`));
     dropZone(drop, addPaths);
     renderFiles();
     const run = tool.reader ? el('button', { class: 'primary', onclick: async () => {
@@ -329,7 +332,7 @@ const Tools = {
     } }, t('run'));
     const useConv = el('button', { class: 'ghost small', onclick: () => { uniqAdd(list, files.filter((f) => tool.accepts.includes(f.kind))); renderFiles(); } }, t('useConvertFiles'));
     const clr = el('button', { class: 'ghost small', onclick: () => { list.length = 0; renderFiles(); } }, t('clear'));
-    pane.replaceChildren(el('h2', {}, `${tool.icon} ${t('tool.' + id)}`), el('div', { class: 'muted' }, tool.reader ? t('editPdfSub') : t('toolsSub')), el('div', { style: 'margin-top:14px' }, drop), el('div', { class: 'row', style: 'margin-top:8px' }, useConv, clr), fileBox, form, el('div', { class: 'row' }, run));
+    pane.replaceChildren(...[el('h2', {}, `${tool.icon} ${t('tool.' + id)}`), el('div', { class: 'muted' }, tool.reader ? t('editPdfSub') : orgHost ? t(id === 'merge-pdf' ? 'org_subMerge' : 'org_subSplit') : t('toolsSub')), el('div', { style: 'margin-top:14px' }, drop), el('div', { class: 'row', style: 'margin-top:8px' }, useConv, clr), id === 'merge-pdf' ? null : fileBox, orgHost ? null : form, orgHost && id === 'merge-pdf' ? form : null, orgHost || el('div', { class: 'row' }, run)].filter(Boolean));
   },
 };
 const EDIT_TOOL = { id: 'edit-pdf', icon: '✏️', accepts: ['pdf'], params: [], reader: true };
@@ -383,5 +386,5 @@ api.onOpenFiles(async ({ paths, tab }) => {
 (async () => {
   S = await api.getSettings(); catalog = await api.catalog();
   Img.init(); Vid.init(); await refreshReader(); applyI18n();
-  window.__mamba = { EDIT_TOOL, Img, Vid, Tools, files, describe, showTab, renderConvert, uniqAdd, catalog, setFiles: async (p) => { uniqAdd(files, await describe(p)); renderConvert(); } };
+  window.__mamba = { EDIT_TOOL, Img, Vid, Tools, enqueue, Q, files, describe, showTab, renderConvert, uniqAdd, catalog, setFiles: async (p) => { uniqAdd(files, await describe(p)); renderConvert(); } };
 })();

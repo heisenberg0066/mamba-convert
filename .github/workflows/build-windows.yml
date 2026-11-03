@@ -69,6 +69,17 @@ jobs:
           Get-Content $env:MAMBA_RADIAL_OUT
           if ($p.ExitCode -ne 0) { throw "radial test failed ($($p.ExitCode))" }
 
+      - name: Page organiser UI test on the packaged app (Merge / Split, screenshots)
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $env:MAMBA_NO_LOCK = '1'; $env:MAMBA_NO_TRAY = '1'; $env:MAMBA_RADIAL_TEST = '1'
+          $env:MAMBA_RADIAL_SCRIPT = "$PWD\test\organiser-ui.js"; $env:MAMBA_ORG_SHOTS = "$PWD\shots\organiser"; $env:MAMBA_RADIAL_OUT = "$env:RUNNER_TEMP\organiser.txt"
+          $p = Start-Process -FilePath "dist\win-unpacked\Mamba Convert.exe" -PassThru -Wait
+          Get-Content $env:MAMBA_RADIAL_OUT
+          if ($p.ExitCode -ne 0) { throw "organiser UI test failed ($($p.ExitCode))" }
+          Get-Process 'Mamba Convert' -ErrorAction SilentlyContinue | Stop-Process -Force
+
       - name: Install silently and verify the Explorer context-menu registration
         shell: pwsh
         run: |

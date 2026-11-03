@@ -151,6 +151,9 @@ const o = { outputDir: OUT };
   await check('wheel: real job from the menu (png → webp via wheel)', async () => { const node = RM.find(RM.menuFor([png]).items, 'convert:webp'); const [job] = RM.resolveJobs(node.action, [png]); const { label, ...jj } = job; return E.runJob({ ...jj, outputDir: OUT }); });
   await check('installer.nsh covers every input extension', async () => { const nsh = fs.readFileSync(path.join(__dirname, '..', 'build', 'installer.nsh'), 'utf8'); const F = E.formats; for (const e of [...F.IMAGE_IN, ...F.VIDEO_IN, ...F.AUDIO_IN, ...F.PDF_IN, ...F.EBOOK_IN, ...F.DOC_IN, ...F.DATA_IN]) { if (!nsh.includes(`\\.${e}\\shell\\MambaConvert\\command`)) throw new Error('missing ' + e); if (!nsh.includes(`DeleteRegKey HKCU "Software\\Classes\\SystemFileAssociations\\.${e}\\shell\\MambaConvert"`)) throw new Error('no uninstall for ' + e); } return 'ok'; });
 
+  // ---- page organiser (Merge / Split)
+  await require('./organiser-tests')({ check, E, W, OUT });
+
   const pass = results.filter((r) => r[0] === 'PASS').length;
   for (const r of results) console.log(`${r[0]}  ${r[1]}  [${r[3]} ms]  ${r[2]}`);
   console.log(`\n${pass}/${results.length} passed`);
